@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% if title %}{{ title }} - {% endif %}Coding Quiz App{% endblock %}</title>
+    
+    <!-- Tabler Core CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css">
+    
+    <!-- Additional CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler-flags.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler-payments.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler-vendors.min.css">
+    
+    <!-- Code Mirror for code editing -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="antialiased d-flex flex-column min-vh-100">
+    <div class="page">
+        <!-- Header -->
+        <header class="navbar navbar-expand-md navbar-light d-print-none">
+            <div class="container-xl">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
+                    <a href="{{ url_for('index') }}">
+                        Coding Quiz App
+                    </a>
+                </h1>
+                <div class="navbar-nav flex-row order-md-last">
+                    <div class="nav-item dropdown">
+                        {% if current_user.is_authenticated %}
+                        <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown" aria-label="Open user menu">
+                            <span class="avatar avatar-sm bg-primary">
+                                {{ current_user.username[:2].upper() }}
+                            </span>
+                            <div class="d-none d-xl-block ps-2">
+                                <div>{{ current_user.username }}</div>
+                                <div class="mt-1 small text-muted">
+                                    {% if current_user.is_admin %}Administrator{% else %}Student{% endif %}
+                                </div>
+                            </div>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
+                            {% if current_user.is_admin %}
+                            <a href="{{ url_for('admin_dashboard') }}" class="dropdown-item">Dashboard</a>
+                            <a href="{{ url_for('admin_quizzes') }}" class="dropdown-item">Manage Quizzes</a>
+                            <a href="{{ url_for('admin_results') }}" class="dropdown-item">View Results</a>
+                            {% else %}
+                            <a href="{{ url_for('student_dashboard') }}" class="dropdown-item">Dashboard</a>
+                            <a href="{{ url_for('student_results') }}" class="dropdown-item">My Results</a>
+                            {% endif %}
+                            <div class="dropdown-divider"></div>
+                            <a href="{{ url_for('logout') }}" class="dropdown-item">Logout</a>
+                        </div>
+                        {% else %}
+                        <div class="nav-item">
+                            <a href="{{ url_for('login') }}" class="nav-link">Login</a>
+                        </div>
+                        <div class="nav-item ms-2">
+                            <a href="{{ url_for('register') }}" class="btn btn-primary">Sign Up</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Navigation -->
+        <div class="navbar-expand-md">
+            <div class="collapse navbar-collapse" id="navbar-menu">
+                <div class="navbar navbar-light">
+                    <div class="container-xl">
+                        <ul class="navbar-nav">
+                            <li class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
+                                <a class="nav-link" href="{{ url_for('index') }}">
+                                    <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                            <polyline points="5 12 3 12 12 3 21 12 19 12" />
+                                            <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+                                            <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
+                                        </svg>
+                                    </span>
+                                    <span class="nav-link-title">Home</span>
+                                </a>
+                            </li>
+                            {% if current_user.is_authenticated %}
+                                {% if current_user.is_admin %}
+                                <li class="nav-item {% if request.endpoint == 'admin_dashboard' %}active{% endif %}">
+                                    <a class="nav-link" href="{{ url_for('admin_dashboard') }}">
+                                        <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                <rect x="4" y="4" width="6" height="6" rx="1" />
+                                                <rect x="14" y="4" width="6" height="6" rx="1" />
+                                                <rect x="4" y="14" width="6" height="6" rx="1" />
+                                                <rect x="14" y="14" width="6" height="6" rx="1" />
+                                            </svg>
+                                        </span>
+                                        <span class="nav-link-title">Dashboard</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item {% if request.endpoint == 'admin_quizzes' %}active{% endif %}">
+                                    <a class="nav-link" href="{{ url_for('admin_quizzes') }}">
+                                        <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                                                <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+                                                <line x1="9" y1="9" x2="10" y2="9" />
+                                                <line x1="9" y1="13" x2="15" y2="13" />
+                                                <line x1="9" y1="17" x2="15" y2="17" />
+                                            </svg>
+                                        </span>
+                                        <span class="nav-link-title">Quizzes</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item {% if request.endpoint == 'admin_results' %}active{% endif %}">
+                                    <a class="nav-link" href="{{ url_for('admin_results') }}">
+                                        <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                                                <path d="M5 8v-3a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2h-5" />
+                                                <rect x="3" y="10" width="8" height="10" rx="1" />
+                                                <path d="M7 15h.01" />
+                                            </svg>
+                                        </span>
+                                        <span class="nav-link-title">Results</span>
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="nav-item {% if request.endpoint == 'student_dashboard' %}active{% endif %}">
+                                    <a class="nav-link" href="{{ url_for('student_dashboard') }}">
+                                        <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                <rect x="4" y="4" width="6" height="6" rx="1" />
+                                                <rect x="14" y="4" width="6" height="6" rx="1" />
+                                                <rect x="4" y="14" width="6" height="6" rx="1" />
+                                                <rect x="14" y="14" width="6" height="6" rx="1" />
+                                            </svg>
+                                        </span>
+                                        <span class="nav-link-title">Dashboard</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item {% if request.endpoint == 'student_results' %}active{% endif %}">
+                                    <a class="nav-link" href="{{ url_for('student_results') }}">
+                                        <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                                                <path d="M5 8v-3a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2h-5" />
+                                                <rect x="3" y="10" width="8" height="10" rx="1" />
+                                                <path d="M7 15h.01" />
+                                            </svg>
+                                        </span>
+                                        <span class="nav-link-title">My Results</span>
+                                    </a>
+                                </li>
+                                {% endif %}
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main content -->
+        <div class="page-wrapper">
+            <div class="container-xl">
+                <!-- Flash messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="mt-2">
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible" role="alert">
+                                    {{ message }}
+                                    <a href="#" class="btn-close" data-bs-dismiss="alert" aria-label="close"></a>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+                
+                <!-- Page header -->
+                <div class="page-header d-print-none">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h2 class="page-title">
+                                {% block page_title %}{{ title }}{% endblock %}
+                            </h2>
+                            <div class="text-muted mt-1">
+                                {% block subtitle %}{% endblock %}
+                            </div>
+                        </div>
+                        <div class="col-auto ms-auto">
+                            {% block page_actions %}{% endblock %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Page body -->
+            <div class="page-body">
+                <div class="container-xl">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <footer class="footer footer-transparent d-print-none mt-auto">
+                <div class="container-xl">
+                    <div class="row text-center align-items-center flex-row-reverse">
+                        <div class="col-12 col-lg-auto mt-3 mt-lg-0">
+                            <ul class="list-inline list-inline-dots mb-0">
+                                <li class="list-inline-item">
+                                    Coding Quiz App &copy; 2025
+                                </li>
+                                <li class="list-inline-item">
+                                    <a href="#" class="link-secondary">Terms & Conditions</a>
+                                </li>
+                                <li class="list-inline-item">
+                                    <a href="#" class="link-secondary">Privacy Policy</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+    
+    <!-- Tabler Core JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/js/tabler.min.js"></script>
+    
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/custom.js') }}"></script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

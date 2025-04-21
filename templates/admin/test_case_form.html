@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+{% if test_case %}Edit Test Case{% else %}Create New Test Case{% endif %}
+{% endblock %}
+
+{% block subtitle %}
+for Question: {{ question.title }} ({{ quiz.title }})
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('edit_question', quiz_id=quiz.id, question_id=question.id) }}" class="btn btn-outline-primary">
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-arrow-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+        <line x1="5" y1="12" x2="11" y2="18"></line>
+        <line x1="5" y1="12" x2="11" y2="6"></line>
+    </svg>
+    Back to Question
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">{% if test_case %}Edit Test Case{% else %}Create Test Case{% endif %}</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% if test_case %}{{ url_for('edit_test_case', quiz_id=quiz.id, question_id=question.id, test_case_id=test_case.id) }}{% else %}{{ url_for('create_test_case', quiz_id=quiz.id, question_id=question.id) }}{% endif %}">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.input_data.label }}</label>
+                        <textarea class="form-control {% if form.input_data.errors %}is-invalid{% endif %}" 
+                                  name="{{ form.input_data.name }}" rows="4">{{ form.input_data.data or '' }}</textarea>
+                        {% if form.input_data.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.input_data.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <small class="form-hint">Input data to be passed to the program (leave empty if no input is needed)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label required">{{ form.expected_output.label }}</label>
+                        <textarea class="form-control {% if form.expected_output.errors %}is-invalid{% endif %}" 
+                                  name="{{ form.expected_output.name }}" rows="4" required>{{ form.expected_output.data or '' }}</textarea>
+                        {% if form.expected_output.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.expected_output.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <small class="form-hint">Expected output from the program (whitespace and line breaks are significant)</small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="{{ form.is_hidden.name }}"
+                                       {% if form.is_hidden.data %}checked{% endif %}>
+                                <span class="form-check-label">{{ form.is_hidden.label }}</span>
+                            </label>
+                            <small class="form-hint d-block">If checked, this test case will not be visible to students</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">{{ form.order.label }}</label>
+                            <input type="number" class="form-control {% if form.order.errors %}is-invalid{% endif %}" 
+                                   name="{{ form.order.name }}" value="{{ form.order.data or '1' }}" required>
+                            {% if form.order.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.order.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <small class="form-hint">Test case sequence number</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-footer">
+                        <button type="submit" class="btn btn-primary">Save Test Case</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

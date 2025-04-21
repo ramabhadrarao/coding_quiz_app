@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+    .CodeMirror {
+        height: 400px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .question-nav-item {
+        cursor: pointer;
+    }
+    .question-nav-item.active {
+        background-color: #206bc4;
+        color: white;
+    }
+    #timer {
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+    .timer-warning {
+        color: #f59f00;
+    }
+    .timer-danger {
+        color: #d63939;
+        animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}
+{{ quiz.title }}
+{% endblock %}
+
+{% block subtitle %}
+Time Remaining: <span id="timer" data-seconds="{{ time_remaining }}">{{ formatted_time }}</span>
+{% endblock %}
+
+{% block page_actions %}
+<form action="{{ url_for('submit_quiz', quiz_id=quiz.id, submission_id=submission.id) }}" method="post" id="submit-form">
+    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirm-submit-modal">
+        Submit Quiz
+    </button>
+</form>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Question Navigation Sidebar -->
+    <div class="col-12 col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Questions</h3>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for question in questions %}
+                    {% set has_submission = submission.question_submissions.filter_by(question_id=question.id).first() is not none %}
+                    <a href="{{ url_for('take_quiz', quiz_id=quiz.id, submission_id=submission.id, question_id=question.id) }}" 
+                       class="list-group-item list-group-item-action question-nav-item {% if question.id == current_question.id %}active{% endif %}">
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                <span class="badge bg-blue">{{ loop.index }}</span>
+                            </div>
+                            <div class="col text-truncate">
+                                {{ question.title }}
+                            </div>
+                            <div class="col-auto">
+                                {% if has_submission %}
+                                    <span class="badge bg-success">Attempted</span>
+                                {% else %}
+                                    <span class="badge bg-muted">Pending</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Current Question -->
+    <div class="col-12 col-md-9">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    Question {{ questions.index(current_question) + 1 }}: {{ current_question.title }}
+                </h3>
+                <div class="card-actions">
+                    <span class="badge bg-blue">{{ current_question.points }} points</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="markdown">
+                    {{ current_question.problem_statement|safe }}
+                </div>
+                
+                {% if current_question.description %}
+                <div class="mt-3">
+                    <p class="text-muted">{{ current_question.description|safe }}</p>
+                </div>
+                {% endif %}
+                
+                <div class="mt-4">
+                    <form method="post" action="{{ url_for('take_quiz', quiz_id=quiz.id, submission_id=submission.id, question_id=current_question.id) }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Your Code</label>
+                            {{ form.code(id="code-editor") }}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">{{ form.language.label }}</label>
+                            {{ form.language(class="form-select") }}
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="button" id="run-code-btn" class="btn btn-success">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-player-play" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                    <path d="M7 4v16l13 -8z"></path>
+                                </svg>
+                                Run Code
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-check" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                    <path d="M5 12l5 5l10 -10"></path>
+                                </svg>
+                                Submit Answer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Test Results -->
+                {% if test_results %}
+                <div class="mt-4">
+                    <h4>Test Results</h4>
+                    <div class="accordion" id="test-results-accordion">
+                        {% for result in test_results %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="heading-test-{{ result.test_case_id }}">
+                                <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" 
+                                        data-bs-target="#collapse-test-{{ result.test_case_id }}" aria-expanded="{{ 'true' if loop.first else 'false' }}" 
+                                        aria-controls="collapse-test-{{ result.test_case_id }}">
+                                    Test Case #{{ loop.index }} - 
+                                    {% if result.passed %}
+                                    <span class="badge bg-success ms-2">Passed</span>
+                                    {% else %}
+                                    <span class="badge bg-danger ms-2">Failed</span>
+                                    {% endif %}
+                                </button>
+                            </h2>
+                            <div id="collapse-test-{{ result.test_case_id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" 
+                                 aria-labelledby="heading-test-{{ result.test_case_id }}" data-bs-parent="#test-results-accordion">
+                                <div class="accordion-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h5>Input:</h5>
+                                            <pre>{{ result.test_case.input_data or 'No input' }}</pre>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h5>Expected Output:</h5>
+                                            <pre>{{ result.test_case.expected_output }}</pre>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <h5>Your Output:</h5>
+                                            <pre>{{ result.output or 'No output' }}</pre>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h5>Errors:</h5>
+                                            <pre {% if result.error %}class="text-danger"{% endif %}>{{ result.error or 'No errors' }}</pre>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 text-muted">
+                                        Execution time: {{ "%.3f"|format(result.execution_time) }} seconds
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Live Test Area -->
+                <div class="mt-4" id="live-test-area" style="display: none;">
+                    <h4>Live Test</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Input</label>
+                                <textarea id="live-test-input" class="form-control" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Output</label>
+                                <pre id="live-test-output" class="form-control" style="min-height: 80px; white-space: pre-wrap;">Run your code to see output here</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Submit Quiz Confirmation Modal -->
+<div class="modal modal-blur fade" id="confirm-submit-modal" tabindex="-1" aria-labelledby="confirm-submit-modal-label" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirm-submit-modal-label">Submit Quiz?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to submit this quiz? This action cannot be undone.</p>
+                
+                <div class="alert alert-warning">
+                    <p><strong>Warning:</strong> You haven't attempted all questions yet.</p>
+                    <ul>
+                        {% for question in questions %}
+                            {% set has_submission = submission.question_submissions.filter_by(question_id=question.id).first() is not none %}
+                            {% if not has_submission %}
+                                <li>Question {{ loop.index }}: {{ question.title }}</li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="document.getElementById('submit-form').submit()">Submit Quiz</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Initialize CodeMirror editor
+    let editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+        lineNumbers: true,
+        mode: getCodeMirrorMode('{{ current_question.language }}'),
+        theme: 'dracula',
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        indentUnit: 4,
+        tabSize: 4,
+        indentWithTabs: false,
+        extraKeys: {"Tab": "indentMore", "Shift-Tab": "indentLess"}
+    });
+
+    // Function to get CodeMirror mode based on language
+    function getCodeMirrorMode(language) {
+        const modeMap = {
+            'python': 'python',
+            'c': 'text/x-csrc',
+            'java': 'text/x-java'
+        };
+        return modeMap[language] || 'text/plain';
+    }
+
+    // Update editor mode when language changes
+    document.getElementById('language').addEventListener('change', function() {
+        editor.setOption('mode', getCodeMirrorMode(this.value));
+    });
+
+    // Timer functionality
+    let timerElement = document.getElementById('timer');
+    let remainingSeconds = parseInt(timerElement.dataset.seconds);
+    
+    function updateTimer() {
+        if (remainingSeconds <= 0) {
+            // Time's up - submit the quiz
+            document.getElementById('submit-form').submit();
+            return;
+        }
+        
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        timerElement.textContent = formattedTime;
+        
+        // Add warning classes as time gets low
+        if (remainingSeconds <= 60) { // Less than 1 minute
+            timerElement.classList.add('timer-danger');
+            timerElement.classList.remove('timer-warning');
+        } else if (remainingSeconds <= 300) { // Less than 5 minutes
+            timerElement.classList.add('timer-warning');
+            timerElement.classList.remove('timer-danger');
+        }
+        
+        remainingSeconds--;
+    }
+    
+    // Update timer every second
+    setInterval(updateTimer, 1000);
+    
+    // Also fetch the server time periodically to stay in sync
+    setInterval(function() {
+        fetch(`/api/time-remaining/${{{ submission.id }}}`)
+            .then(response => response.json())
+            .then(data => {
+                remainingSeconds = data.timeRemaining;
+            })
+            .catch(error => console.error('Error fetching time:', error));
+    }, 30000); // Every 30 seconds
+    
+    // Run Code button
+    document.getElementById('run-code-btn').addEventListener('click', function() {
+        const code = editor.getValue();
+        const language = document.getElementById('language').value;
+        const input = document.getElementById('live-test-input').value;
+        
+        // Show the test area
+        document.getElementById('live-test-area').style.display = 'block';
+        
+        // Update output with loading message
+        document.getElementById('live-test-output').textContent = 'Running code...';
+        
+        // Send to API
+        fetch('/api/run-code', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                code: code,
+                language: language,
+                stdin: input
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            let output = '';
+            
+            if (!data.success) {
+                output = `Error: ${data.error}`;
+            } else {
+                const result = data.run;
+                if (result.stderr) {
+                    output = `Error:\n${result.stderr}`;
+                } else {
+                    output = result.stdout || 'No output';
+                }
+            }
+            
+            document.getElementById('live-test-output').textContent = output;
+        })
+        .catch(error => {
+            document.getElementById('live-test-output').textContent = `Error: ${error.message}`;
+        });
+    });
+</script>
+{% endblock %}

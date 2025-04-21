@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+<style>
+    .CodeMirror {
+        height: 200px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}
+{% if question %}Edit Question{% else %}Create New Question{% endif %}
+{% endblock %}
+
+{% block subtitle %}
+for Quiz: {{ quiz.title }}
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('edit_quiz', quiz_id=quiz.id) }}" class="btn btn-outline-primary">
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-arrow-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+        <line x1="5" y1="12" x2="11" y2="18"></line>
+        <line x1="5" y1="12" x2="11" y2="6"></line>
+    </svg>
+    Back to Quiz
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row row-cards">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">{% if question %}Edit Question{% else %}Create Question{% endif %}</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% if question %}{{ url_for('edit_question', quiz_id=quiz.id, question_id=question.id) }}{% else %}{{ url_for('create_question', quiz_id=quiz.id) }}{% endif %}">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        <label class="form-label required">{{ form.title.label }}</label>
+                        <input type="text" class="form-control {% if form.title.errors %}is-invalid{% endif %}" 
+                               name="{{ form.title.name }}" value="{{ form.title.data or '' }}" required>
+                        {% if form.title.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.title.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.description.label }}</label>
+                        <textarea class="form-control {% if form.description.errors %}is-invalid{% endif %}" 
+                                  name="{{ form.description.name }}" rows="2">{{ form.description.data or '' }}</textarea>
+                        {% if form.description.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.description.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <small class="form-hint">Optional instructions or hints</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label required">{{ form.problem_statement.label }}</label>
+                        <textarea class="form-control {% if form.problem_statement.errors %}is-invalid{% endif %}" 
+                                  name="{{ form.problem_statement.name }}" rows="6" required>{{ form.problem_statement.data or '' }}</textarea>
+                        {% if form.problem_statement.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.problem_statement.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <small class="form-hint">Markdown is supported. Fully describe the coding challenge.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.starter_code.label }}</label>
+                        <textarea id="starter-code" class="form-control {% if form.starter_code.errors %}is-invalid{% endif %}" 
+                                  name="{{ form.starter_code.name }}">{{ form.starter_code.data or '' }}</textarea>
+                        {% if form.starter_code.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.starter_code.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <small class="form-hint">Initial code provided to students</small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">{{ form.language.label }}</label>
+                            <select class="form-select {% if form.language.errors %}is-invalid{% endif %}" 
+                                    name="{{ form.language.name }}" id="language-select" required>
+                                {% for value, label in form.language.choices %}
+                                    <option value="{{ value }}" {% if form.language.data == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if form.language.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.language.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">{{ form.points.label }}</label>
+                            <input type="number" class="form-control {% if form.points.errors %}is-invalid{% endif %}" 
+                                   name="{{ form.points.name }}" value="{{ form.points.data or '10' }}" required>
+                            {% if form.points.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.points.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">{{ form.order.label }}</label>
+                            <input type="number" class="form-control {% if form.order.errors %}is-invalid{% endif %}" 
+                                   name="{{ form.order.name }}" value="{{ form.order.data or '1' }}" required>
+                            {% if form.order.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.order.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <small class="form-hint">Question sequence number</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-footer">
+                        <button type="submit" class="btn btn-primary">Save Question</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    {% if question %}
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Test Cases</h3>
+                <div class="card-actions">
+                    <a href="{{ url_for('create_test_case', quiz_id=quiz.id, question_id=question.id) }}" class="btn btn-primary btn-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Add Test Case
+                    </a>
+                </div>
+            </div>
+            <div class="list-group list-group-flush">
+                {% if test_cases %}
+                    {% for test_case in test_cases %}
+                    <div class="list-group-item">
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                <span class="badge bg-blue">{{ test_case.order }}</span>
+                            </div>
+                            <div class="col">
+                                <small class="d-block text-muted">Input:</small>
+                                <pre class="text-truncate" style="max-width: 200px;">{{ test_case.input_data or '[No input]' }}</pre>
+                                <small class="d-block text-muted">Expected Output:</small>
+                                <pre class="text-truncate" style="max-width: 200px;">{{ test_case.expected_output }}</pre>
+                            </div>
+                            <div class="col-auto">
+                                {% if test_case.is_hidden %}
+                                <span class="badge bg-yellow">Hidden</span>
+                                {% else %}
+                                <span class="badge bg-green">Visible</span>
+                                {% endif %}
+                            </div>
+                            <div class="col-auto">
+                                <div class="dropdown">
+                                    <button class="btn btn-ghost-secondary dropdown-toggle align-text-top" data-bs-toggle="dropdown">
+                                        Actions
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-end">
+                                        <a href="{{ url_for('edit_test_case', quiz_id=quiz.id, question_id=question.id, test_case_id=test_case.id) }}" class="dropdown-item">
+                                            Edit
+                                        </a>
+                                        <a href="#" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-delete-test-case-{{ test_case.id }}">
+                                            Delete
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <!-- Delete test case confirmation modal -->
+                                <div class="modal modal-blur fade" id="modal-delete-test-case-{{ test_case.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered" role="document">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Delete Test Case</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Are you sure you want to delete this test case?</p>
+                                                <p class="text-danger">This will also delete all test results linked to this test case. This action cannot be undone.</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
+                                                    Cancel
+                                                </button>
+                                                <form action="{{ url_for('delete_test_case', quiz_id=quiz.id, question_id=question.id, test_case_id=test_case.id) }}" method="post">
+                                                    <button type="submit" class="btn btn-danger ms-auto">
+                                                        Yes, delete test case
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="list-group-item">
+                    <div class="empty">
+                        <div class="empty-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                                <path d="M9 10l.01 0" />
+                                <path d="M15 10l.01 0" />
+                                <path d="M9.5 15.25a3.5 3.5 0 0 1 5 0" />
+                            </svg>
+                        </div>
+                        <p class="empty-title">No test cases yet</p>
+                        <p class="empty-subtitle text-muted">
+                            Add test cases to verify student code
+                        </p>
+                        <div class="empty-action">
+                            <a href="{{ url_for('create_test_case', quiz_id=quiz.id, question_id=question.id) }}" class="btn btn-primary">
+                                Add First Test Case
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+
+<script>
+    // Initialize CodeMirror editor
+    let editor = CodeMirror.fromTextArea(document.getElementById('starter-code'), {
+        lineNumbers: true,
+        mode: getCodeMirrorMode('{{ form.language.data or "python" }}'),
+        theme: 'dracula',
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        indentUnit: 4,
+        tabSize: 4,
+        indentWithTabs: false,
+        extraKeys: {"Tab": "indentMore", "Shift-Tab": "indentLess"}
+    });
+
+    // Function to get CodeMirror mode based on language
+    function getCodeMirrorMode(language) {
+        const modeMap = {
+            'python': 'python',
+            'c': 'text/x-csrc',
+            'java': 'text/x-java'
+        };
+        return modeMap[language] || 'text/plain';
+    }
+
+    // Update editor mode when language changes
+    document.getElementById('language-select').addEventListener('change', function() {
+        editor.setOption('mode', getCodeMirrorMode(this.value));
+    });
+</script>
+{% endblock %}

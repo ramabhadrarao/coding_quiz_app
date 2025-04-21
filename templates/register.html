@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-tight py-4">
+    <div class="text-center mb-4">
+        <h1>Create Account</h1>
+    </div>
+    <div class="card card-md">
+        <div class="card-body">
+            <form method="post" action="{{ url_for('register') }}">
+                {{ form.hidden_tag() }}
+                <div class="mb-3">
+                    <label class="form-label">{{ form.username.label }}</label>
+                    <input type="text" class="form-control {% if form.username.errors %}is-invalid{% endif %}" 
+                           name="{{ form.username.name }}" placeholder="Username" 
+                           required autofocus>
+                    {% if form.username.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.username.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">{{ form.email.label }}</label>
+                    <input type="email" class="form-control {% if form.email.errors %}is-invalid{% endif %}" 
+                           name="{{ form.email.name }}" placeholder="Email" 
+                           required>
+                    {% if form.email.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.email.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">{{ form.password.label }}</label>
+                    <input type="password" class="form-control {% if form.password.errors %}is-invalid{% endif %}" 
+                           name="{{ form.password.name }}" placeholder="Password" 
+                           required>
+                    {% if form.password.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.password.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">{{ form.password2.label }}</label>
+                    <input type="password" class="form-control {% if form.password2.errors %}is-invalid{% endif %}" 
+                           name="{{ form.password2.name }}" placeholder="Confirm Password" 
+                           required>
+                    {% if form.password2.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.password2.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="form-footer">
+                    <button type="submit" class="btn btn-primary w-100">Create account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="text-center text-muted mt-3">
+        Already have an account? <a href="{{ url_for('login') }}" tabindex="-1">Sign in</a>
+    </div>
+</div>
+{% endblock %}

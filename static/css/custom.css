@@ -1,0 +1,167 @@
+/* Custom CSS for Coding Quiz App */
+
+/* Timer styles */
+.timer-warning {
+    color: #f59f00 !important;
+}
+
+.timer-danger {
+    color: #d63939 !important;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Code Editor */
+.CodeMirror {
+    font-family: 'Fira Code', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    height: 400px;
+}
+
+.editor-container {
+    position: relative;
+}
+
+.editor-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 100;
+}
+
+/* Test Results */
+.test-results-container {
+    margin-top: 20px;
+}
+
+.test-case {
+    margin-bottom: 10px;
+}
+
+.test-case-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.test-case-body {
+    padding: 10px;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+}
+
+pre {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    overflow-x: auto;
+}
+
+/* Question navigation */
+.question-nav-item {
+    transition: background-color 0.2s;
+}
+
+.question-nav-item:hover {
+    background-color: rgba(32, 107, 196, 0.1);
+}
+
+/* Submissions */
+.submission-card {
+    transition: transform 0.2s;
+}
+
+.submission-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Dashboard cards */
+.stat-card {
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom buttons */
+.btn-run {
+    background-color: #2fb344;
+    color: white;
+}
+
+.btn-run:hover {
+    background-color: #28a33a;
+    color: white;
+}
+
+/* Empty state illustrations */
+.empty-icon svg {
+    width: 64px;
+    height: 64px;
+    stroke-width: 1.5;
+    color: #6c757d;
+}
+
+/* Form improvements */
+.invalid-feedback {
+    font-size: 85%;
+}
+
+textarea.form-control {
+    min-height: 100px;
+}
+
+/* Custom avatar colors */
+.avatar-blue {
+    background-color: #206bc4;
+    color: #fff;
+}
+
+.avatar-green {
+    background-color: #2fb344;
+    color: #fff;
+}
+
+.avatar-red {
+    background-color: #d63939;
+    color: #fff;
+}
+
+/* Home page improvements */
+.welcome-card {
+    text-align: center;
+    padding: 40px 0;
+}
+
+.feature-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    color: #206bc4;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .CodeMirror {
+        height: 300px;
+    }
+    
+    .card-title {
+        font-size: 1.2rem;
+    }
+}

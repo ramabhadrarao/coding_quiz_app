@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-tight py-4">
+    <div class="text-center mb-4">
+        <h1>Sign In</h1>
+    </div>
+    <div class="card card-md">
+        <div class="card-body">
+            <form method="post" action="{{ url_for('login') }}">
+                {{ form.hidden_tag() }}
+                <div class="mb-3">
+                    <label class="form-label">{{ form.username.label }}</label>
+                    <input type="text" class="form-control {% if form.username.errors %}is-invalid{% endif %}" 
+                           name="{{ form.username.name }}" placeholder="Username" 
+                           required autofocus>
+                    {% if form.username.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.username.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">
+                        {{ form.password.label }}
+                        <span class="form-label-description">
+                            <a href="#">Forgot password?</a>
+                        </span>
+                    </label>
+                    <input type="password" class="form-control {% if form.password.errors %}is-invalid{% endif %}" 
+                           name="{{ form.password.name }}" placeholder="Password" 
+                           required>
+                    {% if form.password.errors %}
+                    <div class="invalid-feedback">
+                        {% for error in form.password.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mb-2">
+                    <label class="form-check">
+                        <input type="checkbox" class="form-check-input" 
+                               name="{{ form.remember_me.name }}">
+                        <span class="form-check-label">{{ form.remember_me.label }}</span>
+                    </label>
+                </div>
+                <div class="form-footer">
+                    <button type="submit" class="btn btn-primary w-100">Sign in</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="text-center text-muted mt-3">
+        Don't have an account yet? <a href="{{ url_for('register') }}" tabindex="-1">Sign up</a>
+    </div>
+</div>
+{% endblock %}

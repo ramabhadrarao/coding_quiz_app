@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row row-cards">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <span class="bg-primary text-white avatar">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+                                <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+                                <line x1="9" y1="9" x2="10" y2="9" />
+                                <line x1="9" y1="13" x2="15" y2="13" />
+                                <line x1="9" y1="17" x2="15" y2="17" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="col">
+                        <div class="font-weight-medium">
+                            {{ quizzes|length }} Quizzes
+                        </div>
+                        <div class="text-muted">
+                            {{ quizzes|selectattr('is_active', 'equalto', true)|list|length }} active
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <span class="bg-green text-white avatar">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                <circle cx="12" cy="12" r="9" />
+                                <path d="M9 12l2 2l4 -4" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="col">
+                        <div class="font-weight-medium">
+                            {% set total_questions = 0 %}
+                            {% for quiz in quizzes %}
+                                {% set total_questions = total_questions + quiz.questions.count() %}
+                            {% endfor %}
+                            {{ total_questions }} Questions
+                        </div>
+                        <div class="text-muted">
+                            across all quizzes
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <span class="bg-yellow text-white avatar">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                <circle cx="12" cy="12" r="9" />
+                                <polyline points="12 7 12 12 15 15" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="col">
+                        <div class="font-weight-medium">
+                            {% set total_time = 0 %}
+                            {% for quiz in quizzes %}
+                                {% set total_time = total_time + quiz.time_limit %}
+                            {% endfor %}
+                            {{ total_time }} Minutes
+                        </div>
+                        <div class="text-muted">
+                            total quiz duration
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <span class="bg-blue text-white avatar">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M3 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                <path d="M21 21v-2a4 4 0 0 0 -3 -3.85" />
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="col">
+                        <div class="font-weight-medium">
+                            {{ recent_submissions|length }} Submissions
+                        </div>
+                        <div class="text-muted">
+                            in the last 30 days
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Recent Quiz Submissions</h3>
+                <div class="card-actions">
+                    <a href="{{ url_for('admin_results') }}" class="btn btn-primary">
+                        View All Results
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if recent_submissions %}
+                <div class="table-responsive">
+                    <table class="table table-vcenter">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Quiz</th>
+                                <th>Completion Date</th>
+                                <th>Score</th>
+                                <th>Time Taken</th>
+                                <th class="w-1"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for submission in recent_submissions %}
+                            <tr>
+                                <td>{{ submission.student.username }}</td>
+                                <td>{{ submission.quiz.title }}</td>
+                                <td>{{ submission.completed_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    {{ "%.1f"|format(submission.score) }} / {{ submission.total_points }}
+                                    ({{ "%.1f"|format(100 * submission.score / submission.total_points if submission.total_points else 0) }}%)
+                                </td>
+                                <td>
+                                    {% set duration = (submission.completed_at - submission.started_at).total_seconds() // 60 %}
+                                    {{ duration }} minutes
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('admin_view_submission', submission_id=submission.id) }}" class="btn btn-outline-primary btn-sm">
+                                        View Details
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty">
+                    <div class="empty-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                            <path d="M9 10l.01 0" />
+                            <path d="M15 10l.01 0" />
+                            <path d="M9.5 15.25a3.5 3.5 0 0 1 5 0" />
+                        </svg>
+                    </div>
+                    <p class="empty-title">No submissions yet</p>
+                    <p class="empty-subtitle text-muted">
+                        No students have completed any quizzes yet.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Your Quizzes</h3>
+                <div class="card-actions">
+                    <a href="{{ url_for('create_quiz') }}" class="btn btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Create New Quiz
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if quizzes %}
+                <div class="table-responsive">
+                    <table class="table table-vcenter card-table">
+                        <thead>
+                            <tr>
+                                <th>Quiz Title</th>
+                                <th>Questions</th>
+                                <th>Time Limit</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th class="w-1">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for quiz in quizzes %}
+                            <tr>
+                                <td>{{ quiz.title }}</td>
+                                <td>{{ quiz.questions.count() }} questions</td>
+                                <td>{{ quiz.time_limit }} minutes</td>
+                                <td>
+                                    {% if quiz.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ quiz.created_at.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    <div class="btn-list flex-nowrap">
+                                        <a href="{{ url_for('edit_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-primary">
+                                            Edit
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-danger" 
+                                                data-bs-toggle="modal" data-bs-target="#modal-delete-quiz-{{ quiz.id }}">
+                                            Delete
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Delete confirmation modal -->
+                                    <div class="modal modal-blur fade" id="modal-delete-quiz-{{ quiz.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered" role="document">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Delete Quiz</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p>Are you sure you want to delete the quiz <strong>"{{ quiz.title }}"</strong>?</p>
+                                                    <p class="text-danger">This will also delete all questions, test cases, and student submissions for this quiz. This action cannot be undone.</p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
+                                                        Cancel
+                                                    </button>
+                                                    <form action="{{ url_for('delete_quiz', quiz_id=quiz.id) }}" method="post">
+                                                        <button type="submit" class="btn btn-danger ms-auto">
+                                                            Yes, delete quiz
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty">
+                    <div class="empty-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                            <path d="M9 10l.01 0" />
+                            <path d="M15 10l.01 0" />
+                            <path d="M9.5 15.25a3.5 3.5 0 0 1 5 0" />
+                        </svg>
+                    </div>
+                    <p class="empty-title">No quizzes created yet</p>
+                    <p class="empty-subtitle text-muted">
+                        Start by creating your first quiz.
+                    </p>
+                    <div class="empty-action">
+                        <a href="{{ url_for('create_quiz') }}" class="btn btn-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                            Create New Quiz
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

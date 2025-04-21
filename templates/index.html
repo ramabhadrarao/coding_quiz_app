@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row row-cards">
+    <div class="col-md-6 offset-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title text-center mb-4">Welcome to Coding Quiz App</h2>
+                <p class="text-center text-muted mb-4">
+                    Test your coding skills with our interactive quizzes!
+                </p>
+                <div class="text-center mb-4">
+                    <img src="{{ url_for('static', filename='assets/coding_illustration.svg') }}" 
+                         alt="Coding Illustration" class="img-fluid" style="max-height: 200px;">
+                </div>
+                <div class="text-center">
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.is_admin %}
+                            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary btn-lg">Go to Admin Dashboard</a>
+                        {% else %}
+                            <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary btn-lg">Start Solving Quizzes</a>
+                        {% endif %}
+                    {% else %}
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
+                            <a href="{{ url_for('register') }}" class="btn btn-outline-primary">Sign Up</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="row row-cards mt-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-code mb-2" width="40" height="40" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                <polyline points="7 8 3 12 7 16"></polyline>
+                                <polyline points="17 8 21 12 17 16"></polyline>
+                                <line x1="14" y1="4" x2="10" y2="20"></line>
+                            </svg>
+                            <h3>Multiple Languages</h3>
+                            <p class="text-muted">
+                                Practice in Python, C, Java and more!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-device-laptop mb-2" width="40" height="40" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                <line x1="3" y1="19" x2="21" y2="19"></line>
+                                <rect x="5" y="6" width="14" height="10" rx="1"></rect>
+                            </svg>
+                            <h3>Live Code Editor</h3>
+                            <p class="text-muted">
+                                Code directly in your browser!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-zap mb-2" width="40" height="40" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                <path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11"></path>
+                            </svg>
+                            <h3>Instant Feedback</h3>
+                            <p class="text-muted">
+                                Get immediate results!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

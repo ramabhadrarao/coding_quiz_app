@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row row-cards">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Available Quizzes</h3>
+            </div>
+            <div class="card-body">
+                {% if active_quizzes %}
+                <div class="table-responsive">
+                    <table class="table table-vcenter card-table">
+                        <thead>
+                            <tr>
+                                <th>Quiz Title</th>
+                                <th>Description</th>
+                                <th>Time Limit</th>
+                                <th>Questions</th>
+                                <th>Status</th>
+                                <th class="w-1"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for quiz in active_quizzes %}
+                            <tr>
+                                <td>{{ quiz.title }}</td>
+                                <td class="text-muted">
+                                    {{ quiz.description|truncate(100) if quiz.description else 'No description' }}
+                                </td>
+                                <td>{{ quiz.time_limit }} minutes</td>
+                                <td>{{ quiz.questions.count() }}</td>
+                                <td>
+                                    {% if quiz.id in completed_quiz_ids %}
+                                        <span class="badge bg-success">Completed</span>
+                                    {% else %}
+                                        <span class="badge bg-blue">Available</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if quiz.id in completed_quiz_ids %}
+                                        {% set submission = my_submissions|selectattr('quiz_id', 'equalto', quiz.id)|selectattr('is_completed', 'equalto', true)|first %}
+                                        <a href="{{ url_for('student_view_submission', submission_id=submission.id) }}" class="btn btn-success btn-sm">
+                                            View Results
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ url_for('start_quiz', quiz_id=quiz.id) }}" class="btn btn-primary btn-sm">
+                                            Start Quiz
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty">
+                    <div class="empty-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                            <path d="M9 10l.01 0" />
+                            <path d="M15 10l.01 0" />
+                            <path d="M9.5 15.25a3.5 3.5 0 0 1 5 0" />
+                        </svg>
+                    </div>
+                    <p class="empty-title">No active quizzes available</p>
+                    <p class="empty-subtitle text-muted">
+                        Check back later for new quizzes!
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 mt-3">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">My Recent Submissions</h3>
+            </div>
+            <div class="card-body">
+                {% if my_submissions %}
+                <div class="table-responsive">
+                    <table class="table table-vcenter card-table">
+                        <thead>
+                            <tr>
+                                <th>Quiz</th>
+                                <th>Started</th>
+                                <th>Completed</th>
+                                <th>Score</th>
+                                <th>Status</th>
+                                <th class="w-1"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for submission in my_submissions %}
+                            <tr>
+                                <td>{{ submission.quiz.title }}</td>
+                                <td>{{ submission.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    {% if submission.completed_at %}
+                                        {{ submission.completed_at.strftime('%Y-%m-%d %H:%M') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if submission.is_completed %}
+                                        {{ "%.1f"|format(submission.score) }} / {{ submission.total_points }}
+                                    {% else %}
+                                        In progress
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if submission.is_completed %}
+                                        <span class="badge bg-success">Completed</span>
+                                    {% else %}
+                                        <span class="badge bg-yellow">In Progress</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if submission.is_completed %}
+                                        <a href="{{ url_for('student_view_submission', submission_id=submission.id) }}" class="btn btn-outline-primary btn-sm">
+                                            View Results
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ url_for('take_quiz', quiz_id=submission.quiz_id, submission_id=submission.id) }}" class="btn btn-primary btn-sm">
+                                            Continue
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty">
+                    <div class="empty-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                            <path d="M9 10l.01 0" />
+                            <path d="M15 10l.01 0" />
+                            <path d="M9.5 15.25a3.5 3.5 0 0 1 5 0" />
+                        </svg>
+                    </div>
+                    <p class="empty-title">No quiz submissions yet</p>
+                    <p class="empty-subtitle text-muted">
+                        Start a quiz to see your progress here!
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

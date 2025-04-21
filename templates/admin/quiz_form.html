@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+{% if quiz %}Edit Quiz: {{ quiz.title }}{% else %}Create New Quiz{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">{% if quiz %}Edit Quiz{% else %}Create Quiz{% endif %}</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% if quiz %}{{ url_for('edit_quiz', quiz_id=quiz.id) }}{% else %}{{ url_for('create_quiz') }}{% endif %}">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        <label class="form-label required">{{ form.title.label }}</label>
+                        <input type="text" class="form-control {% if form.title.errors %}is-invalid{% endif %}" 
+                               name="{{ form.title.name }}" value="{{ form.title.data or '' }}" required>
+                        {% if form.title.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.title.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.description.label }}</label>
+                        <textarea class="form-control {% if form.description.errors %}is-invalid{% endif %}" 
+                                  name="{{ form.description.name }}" rows="4">{{ form.description.data or '' }}</textarea>
+                        {% if form.description.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.description.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label required">{{ form.time_limit.label }}</label>
+                        <input type="number" class="form-control {% if form.time_limit.errors %}is-invalid{% endif %}" 
+                               name="{{ form.time_limit.name }}" value="{{ form.time_limit.data or '30' }}" required>
+                        {% if form.time_limit.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.time_limit.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <small class="form-hint">Time in minutes</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-check">
+                            <input type="checkbox" class="form-check-input" name="{{ form.is_active.name }}" 
+                                   {% if form.is_active.data %}checked{% endif %}>
+                            <span class="form-check-label">{{ form.is_active.label }}</span>
+                        </label>
+                        <small class="form-hint">If checked, students will be able to see and take this quiz</small>
+                    </div>
+                    <div class="form-footer">
+                        <button type="submit" class="btn btn-primary">Save Quiz</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    {% if quiz %}
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Questions</h3>
+                <div class="card-actions">
+                    <a href="{{ url_for('create_question', quiz_id=quiz.id) }}" class="btn btn-primary btn-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Add Question
+                    </a>
+                </div>
+            </div>
+            <div class="list-group list-group-flush">
+                {% if questions %}
+                    {% for question in questions %}
+                    <div class="list-group-item">
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                <span class="badge bg-blue">{{ question.order }}</span>
+                            </div>
+                            <div class="col text-truncate">
+                                <a href="{{ url_for('edit_question', quiz_id=quiz.id, question_id=question.id) }}" class="text-body d-block">{{ question.title }}</a>
+                                <div class="d-flex align-items-center mt-1">
+                                    <span class="badge bg-cyan me-1">{{ question.language }}</span>
+                                    <small class="text-muted">{{ question.points }} points</small>
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <div class="dropdown">
+                                    <button class="btn btn-ghost-secondary dropdown-toggle align-text-top" data-bs-toggle="dropdown">
+                                        Actions
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-end">
+                                        <a href="{{ url_for('edit_question', quiz_id=quiz.id, question_id=question.id) }}" class="dropdown-item">
+                                            Edit
+                                        </a>
+                                        <a href="#" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-delete-question-{{ question.id }}">
+                                            Delete
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <!-- Delete question confirmation modal -->
+                                <div class="modal modal-blur fade" id="modal-delete-question-{{ question.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered" role="document">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Delete Question</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p>Are you sure you want to delete the question <strong>"{{ question.title }}"</strong>?</p>
+                                                <p class="text-danger">This will also delete all test cases and student submissions for this question. This action cannot be undone.</p>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
+                                                    Cancel
+                                                </button>
+                                                <form action="{{ url_for('delete_question', quiz_id=quiz.id, question_id=question.id) }}" method="post">
+                                                    <button type="submit" class="btn btn-danger ms-auto">
+                                                        Yes, delete question
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="list-group-item">
+                    <div class="empty">
+                        <div class="empty-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                                <path d="M9 10l.01 0" />
+                                <path d="M15 10l.01 0" />
+                                <path d="M9.5 15.25a3.5 3.5 0 0 1 5 0" />
+                            </svg>
+                        </div>
+                        <p class="empty-title">No questions yet</p>
+                        <p class="empty-subtitle text-muted">
+                            Add questions to your quiz
+                        </p>
+                        <div class="empty-action">
+                            <a href="{{ url_for('create_question', quiz_id=quiz.id) }}" class="btn btn-primary">
+                                Add First Question
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
