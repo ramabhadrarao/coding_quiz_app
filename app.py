@@ -1,17 +1,33 @@
 from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.urls import url_parse
+from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import json
+import os
 
 from config import Config
-from models import db, User, Quiz, Question, TestCase, Submission, QuestionSubmission, TestResult
+from models import db, User, Quiz, Question, TestCase, Submission, QuestionSubmission, TestResult, QuestionOption, SelectedOption
 from forms import (LoginForm, RegistrationForm, QuizForm, QuestionForm, 
-                  TestCaseForm, CodeSubmissionForm)
+                  TestCaseForm, CodeSubmissionForm, MultipleChoiceQuestionForm,
+                  TrueFalseQuestionForm, MultipleChoiceSubmissionForm, TrueFalseSubmissionForm,
+                  OptionForm)
 from utils import PistonAPI, format_time_remaining
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Configuration for file uploads
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Create uploads directory if it doesn't exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Initialize database
 db.init_app(app)
@@ -36,7 +52,6 @@ def admin_required(func):
     return decorated_view
 
 # Routes
-
 @app.route('/')
 def index():
     if current_user.is_authenticated:
@@ -88,7 +103,6 @@ def logout():
     return redirect(url_for('index'))
 
 # Admin routes
-
 @app.route('/admin/dashboard')
 @admin_required
 def admin_dashboard():
@@ -164,14 +178,25 @@ def delete_quiz(quiz_id):
     flash('Quiz deleted successfully!', 'success')
     return redirect(url_for('admin_quizzes'))
 
-@app.route('/admin/quizzes/<int:quiz_id>/questions/new', methods=['GET', 'POST'])
+# Question type selector route
+@app.route('/admin/quizzes/<int:quiz_id>/questions/select-type', methods=['GET'])
 @admin_required
-def create_question(quiz_id):
+def select_question_type(quiz_id):
     quiz = Quiz.query.get_or_404(quiz_id)
     if quiz.author_id != current_user.id:
         abort(403)
     
-    form = QuestionForm()
+    return render_template('admin/question_type_selector.html', quiz=quiz, title='Select Question Type')
+
+# Code Question Routes
+@app.route('/admin/quizzes/<int:quiz_id>/questions/code/new', methods=['GET', 'POST'])
+@admin_required
+def create_code_question(quiz_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    if quiz.author_id != current_user.id:
+        abort(403)
+    
+    form = CodeQuestionForm()
     if form.validate_on_submit():
         question = Question(
             quiz_id=quiz_id,
@@ -180,12 +205,13 @@ def create_question(quiz_id):
             problem_statement=form.problem_statement.data,
             starter_code=form.starter_code.data,
             language=form.language.data,
+            question_type='code',
             points=form.points.data,
             order=form.order.data
         )
         db.session.add(question)
         db.session.commit()
-        flash('Question created successfully!', 'success')
+        flash('Code question created successfully!', 'success')
         return redirect(url_for('edit_question', quiz_id=quiz_id, question_id=question.id))
     
     # Default values for new question
@@ -195,7 +221,7 @@ def create_question(quiz_id):
     return render_template('admin/question_form.html', 
                           form=form, 
                           quiz=quiz,
-                          title='Create Question')
+                          title='Create Code Question')
 
 @app.route('/admin/quizzes/<int:quiz_id>/questions/<int:question_id>/edit', methods=['GET', 'POST'])
 @admin_required
@@ -206,27 +232,34 @@ def edit_question(quiz_id, question_id):
     if quiz.author_id != current_user.id or question.quiz_id != quiz_id:
         abort(403)
     
-    form = QuestionForm(obj=question)
-    if form.validate_on_submit():
-        question.title = form.title.data
-        question.description = form.description.data
-        question.problem_statement = form.problem_statement.data
-        question.starter_code = form.starter_code.data
-        question.language = form.language.data
-        question.points = form.points.data
-        question.order = form.order.data
+    # Route based on question type
+    if question.question_type == 'multiple_choice':
+        return redirect(url_for('edit_multiple_choice_question', quiz_id=quiz_id, question_id=question_id))
+    elif question.question_type == 'true_false':
+        return redirect(url_for('edit_true_false_question', quiz_id=quiz_id, question_id=question_id))
+    elif question.question_type == 'code' or not question.question_type:  # Default to code for backward compatibility
+        form = QuestionForm(obj=question)
+        if form.validate_on_submit():
+            question.title = form.title.data
+            question.description = form.description.data
+            question.problem_statement = form.problem_statement.data
+            question.starter_code = form.starter_code.data
+            question.language = form.language.data
+            question.points = form.points.data
+            question.order = form.order.data
+            question.question_type = 'code'  # Ensure type is set
+            
+            db.session.commit()
+            flash('Question updated successfully!', 'success')
+            return redirect(url_for('edit_quiz', quiz_id=quiz_id))
         
-        db.session.commit()
-        flash('Question updated successfully!', 'success')
-        return redirect(url_for('edit_quiz', quiz_id=quiz_id))
-    
-    test_cases = question.test_cases.order_by(TestCase.order).all()
-    return render_template('admin/question_form.html', 
-                          form=form, 
-                          quiz=quiz, 
-                          question=question,
-                          test_cases=test_cases,
-                          title='Edit Question')
+        test_cases = question.test_cases.order_by(TestCase.order).all()
+        return render_template('admin/question_form.html', 
+                            form=form, 
+                            quiz=quiz, 
+                            question=question,
+                            test_cases=test_cases,
+                            title='Edit Question')
 
 @app.route('/admin/quizzes/<int:quiz_id>/questions/<int:question_id>/delete', methods=['POST'])
 @admin_required
@@ -241,6 +274,262 @@ def delete_question(quiz_id, question_id):
     db.session.commit()
     flash('Question deleted successfully!', 'success')
     return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+
+# Multiple Choice Question Routes
+@app.route('/admin/quizzes/<int:quiz_id>/questions/multiple-choice/new', methods=['GET', 'POST'])
+@admin_required
+def create_multiple_choice_question(quiz_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    if quiz.author_id != current_user.id:
+        abort(403)
+    
+    form = MultipleChoiceQuestionForm()
+    if form.validate_on_submit():
+        # Create the question
+        question = Question(
+            quiz_id=quiz_id,
+            title=form.title.data,
+            description=form.description.data,
+            problem_statement=form.problem_statement.data,
+            question_type='multiple_choice',
+            points=form.points.data,
+            order=form.order.data
+        )
+        db.session.add(question)
+        db.session.flush()  # Get the question ID without committing
+        
+        # Process options
+        for i, option_form in enumerate(form.options):
+            # Handle image upload
+            image_path = None
+            if 'options-{}-image'.format(i) in request.files:
+                file = request.files['options-{}-image'.format(i)]
+                if file and file.filename and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    # Create unique filename with timestamp
+                    filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(file_path)
+                    image_path = filename
+            
+            # Create option
+            option = QuestionOption(
+                question_id=question.id,
+                text=option_form.text.data,
+                is_correct=option_form.is_correct.data,
+                order=option_form.order.data,
+                image_path=image_path
+            )
+            db.session.add(option)
+        
+        db.session.commit()
+        flash('Multiple choice question created successfully!', 'success')
+        return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+    
+    # Default values for new question
+    form.order.data = quiz.questions.count() + 1
+    form.points.data = 10
+    
+    return render_template('admin/multiple_choice_question_form.html', 
+                          form=form, 
+                          quiz=quiz,
+                          title='Create Multiple Choice Question')
+
+@app.route('/admin/quizzes/<int:quiz_id>/questions/<int:question_id>/multiple-choice/edit', methods=['GET', 'POST'])
+@admin_required
+def edit_multiple_choice_question(quiz_id, question_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    question = Question.query.get_or_404(question_id)
+    
+    if quiz.author_id != current_user.id or question.quiz_id != quiz_id:
+        abort(403)
+    
+    if question.question_type != 'multiple_choice':
+        abort(400)
+    
+    form = MultipleChoiceQuestionForm(obj=question)
+    
+    # Pre-populate options
+    if request.method == 'GET':
+        form.options = []
+        for option in question.options.order_by(QuestionOption.order).all():
+            option_form = OptionForm()
+            option_form.text.data = option.text
+            option_form.is_correct.data = option.is_correct
+            option_form.order.data = option.order
+            # We don't pre-populate the image field
+            form.options.append(option_form)
+    
+    if form.validate_on_submit():
+        # Update question
+        question.title = form.title.data
+        question.description = form.description.data
+        question.problem_statement = form.problem_statement.data
+        question.points = form.points.data
+        question.order = form.order.data
+        
+        # Delete existing options
+        for option in question.options.all():
+            db.session.delete(option)
+        
+        # Process options
+        for i, option_form in enumerate(form.options):
+            # Handle image upload
+            image_path = None
+            if 'options-{}-image'.format(i) in request.files:
+                file = request.files['options-{}-image'.format(i)]
+                if file and file.filename and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    # Create unique filename with timestamp
+                    filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(file_path)
+                    image_path = filename
+            
+            # Create option
+            option = QuestionOption(
+                question_id=question.id,
+                text=option_form.text.data,
+                is_correct=option_form.is_correct.data,
+                order=option_form.order.data,
+                image_path=image_path
+            )
+            db.session.add(option)
+        
+        db.session.commit()
+        flash('Multiple choice question updated successfully!', 'success')
+        return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+    
+    return render_template('admin/multiple_choice_question_form.html', 
+                          form=form, 
+                          quiz=quiz,
+                          question=question,
+                          title='Edit Multiple Choice Question')
+
+# True/False Question Routes
+@app.route('/admin/quizzes/<int:quiz_id>/questions/true-false/new', methods=['GET', 'POST'])
+@admin_required
+def create_true_false_question(quiz_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    if quiz.author_id != current_user.id:
+        abort(403)
+    
+    form = TrueFalseQuestionForm()
+    if form.validate_on_submit():
+        # Create the question
+        question = Question(
+            quiz_id=quiz_id,
+            title=form.title.data,
+            description=form.description.data,
+            problem_statement=form.problem_statement.data,
+            question_type='true_false',
+            points=form.points.data,
+            order=form.order.data
+        )
+        db.session.add(question)
+        db.session.flush()  # Get the question ID without committing
+        
+        # Create true option
+        true_option = QuestionOption(
+            question_id=question.id,
+            text='True',
+            is_correct=(form.correct_answer.data == 'true'),
+            order=0
+        )
+        db.session.add(true_option)
+        
+        # Create false option
+        false_option = QuestionOption(
+            question_id=question.id,
+            text='False',
+            is_correct=(form.correct_answer.data == 'false'),
+            order=1
+        )
+        db.session.add(false_option)
+        
+        db.session.commit()
+        flash('True/False question created successfully!', 'success')
+        return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+    
+    # Default values for new question
+    form.order.data = quiz.questions.count() + 1
+    form.points.data = 5
+    
+    return render_template('admin/true_false_question_form.html', 
+                          form=form, 
+                          quiz=quiz,
+                          title='Create True/False Question')
+
+@app.route('/admin/quizzes/<int:quiz_id>/questions/<int:question_id>/true-false/edit', methods=['GET', 'POST'])
+@admin_required
+def edit_true_false_question(quiz_id, question_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    question = Question.query.get_or_404(question_id)
+    
+    if quiz.author_id != current_user.id or question.quiz_id != quiz_id:
+        abort(403)
+    
+    if question.question_type != 'true_false':
+        abort(400)
+    
+    form = TrueFalseQuestionForm(obj=question)
+    
+    # Pre-populate correct answer
+    if request.method == 'GET':
+        true_option = question.options.filter_by(text='True').first()
+        if true_option and true_option.is_correct:
+            form.correct_answer.data = 'true'
+        else:
+            form.correct_answer.data = 'false'
+    
+    if form.validate_on_submit():
+        # Update question
+        question.title = form.title.data
+        question.description = form.description.data
+        question.problem_statement = form.problem_statement.data
+        question.points = form.points.data
+        question.order = form.order.data
+        
+        # Update options
+        true_option = question.options.filter_by(text='True').first()
+        false_option = question.options.filter_by(text='False').first()
+        
+        if true_option:
+            true_option.is_correct = (form.correct_answer.data == 'true')
+        else:
+            true_option = QuestionOption(
+                question_id=question.id,
+                text='True',
+                is_correct=(form.correct_answer.data == 'true'),
+                order=0
+            )
+            db.session.add(true_option)
+        
+        if false_option:
+            false_option.is_correct = (form.correct_answer.data == 'false')
+        else:
+            false_option = QuestionOption(
+                question_id=question.id,
+                text='False',
+                is_correct=(form.correct_answer.data == 'false'),
+                order=1
+            )
+            db.session.add(false_option)
+        
+        db.session.commit()
+        flash('True/False question updated successfully!', 'success')
+        return redirect(url_for('edit_quiz', quiz_id=quiz_id))
+    
+    return render_template('admin/true_false_question_form.html', 
+                          form=form, 
+                          quiz=quiz,
+                          question=question,
+                          title='Edit True/False Question')
+@app.route('/admin/quizzes/<int:quiz_id>/questions/new', methods=['GET', 'POST'])
+@admin_required
+def create_question(quiz_id):
+    # Redirect to question type selector
+    return redirect(url_for('select_question_type', quiz_id=quiz_id))
 
 @app.route('/admin/quizzes/<int:quiz_id>/questions/<int:question_id>/test-cases/new', methods=['GET', 'POST'])
 @admin_required
@@ -345,9 +634,7 @@ def admin_view_submission(submission_id):
                           quiz=quiz,
                           question_submissions=question_submissions,
                           title='Submission Details')
-
 # Student routes
-
 @app.route('/student/dashboard')
 @login_required
 def student_dashboard():
@@ -404,7 +691,7 @@ def start_quiz(quiz_id):
     db.session.commit()
     
     return redirect(url_for('take_quiz', quiz_id=quiz_id, submission_id=submission.id))
-
+# Update the take_quiz route to handle different question types
 @app.route('/student/quizzes/<int:quiz_id>/submissions/<int:submission_id>', methods=['GET', 'POST'])
 @login_required
 def take_quiz(quiz_id, submission_id):
@@ -468,111 +755,284 @@ def take_quiz(quiz_id, submission_id):
         question_id=current_question.id
     ).first()
     
-    # Create form for code submission
-    form = CodeSubmissionForm()
-    form.language.data = current_question.language  # Default to question language
-    
-    if form.validate_on_submit():
-        # Save the code submission
-        if question_submission is None:
-            question_submission = QuestionSubmission(
-                submission_id=submission.id,
-                question_id=current_question.id,
-                code=form.code.data,
-                language=form.language.data,
-                submitted_at=datetime.utcnow()
-            )
-            db.session.add(question_submission)
-        else:
-            question_submission.code = form.code.data
-            question_submission.language = form.language.data
-            question_submission.submitted_at = datetime.utcnow()
-        
-        db.session.commit()
-        
-        # Run test cases
-        test_cases = current_question.test_cases.all()
-        for test_case in test_cases:
-            # Check if we already have a result for this test case
-            test_result = TestResult.query.filter_by(
-                question_submission_id=question_submission.id,
-                test_case_id=test_case.id
-            ).first()
-            
-            # Run the test case
-            result = PistonAPI.run_test_case(form.language.data, form.code.data, test_case)
-            
-            if test_result is None:
-                test_result = TestResult(
-                    question_submission_id=question_submission.id,
-                    test_case_id=test_case.id,
-                    passed=result['passed'],
-                    output=result['output'],
-                    error=result['error'],
-                    execution_time=result['execution_time']
-                )
-                db.session.add(test_result)
-            else:
-                test_result.passed = result['passed']
-                test_result.output = result['output']
-                test_result.error = result['error']
-                test_result.execution_time = result['execution_time']
-        
-        # Calculate score for this question
-        question_submission.calculate_score()
-        db.session.commit()
-        
-        # Check if all questions have been answered
-        all_answered = True
-        for q in questions:
-            q_submission = QuestionSubmission.query.filter_by(
-                submission_id=submission.id,
-                question_id=q.id
-            ).first()
-            if not q_submission:
-                all_answered = False
-                break
-        
-        if all_answered:
-            flash('All questions have been answered! You can review your answers or submit the quiz.', 'success')
-        else:
-            # Move to next unanswered question
-            next_question = None
-            found_current = False
-            for q in questions:
-                if found_current:
-                    q_submission = QuestionSubmission.query.filter_by(
-                        submission_id=submission.id,
-                        question_id=q.id
-                    ).first()
-                    if not q_submission:
-                        next_question = q
-                        break
-                if q.id == current_question.id:
-                    found_current = True
-            
-            if next_question:
-                flash('Your answer has been saved. Moving to the next question.', 'success')
-                return redirect(url_for('take_quiz', quiz_id=quiz_id, submission_id=submission.id, question_id=next_question.id))
-            else:
-                flash('Your answer has been saved.', 'success')
-                return redirect(url_for('take_quiz', quiz_id=quiz_id, submission_id=submission.id))
-    
-    # Pre-populate form with existing submission if any
-    if question_submission and not form.is_submitted():
-        form.code.data = question_submission.code
-        form.language.data = question_submission.language
-    elif not form.is_submitted():
-        # Use starter code if available
-        form.code.data = current_question.starter_code
-    
-    # Get test results for this question
+    # Initialize variables for templates
+    code_form = None
+    multiple_choice_form = None
+    true_false_form = None
     test_results = []
-    if question_submission:
-        test_results = TestResult.query.join(TestCase).filter(
-            TestResult.question_submission_id == question_submission.id,
-            TestCase.is_hidden == False
-        ).all()
+    selected_options = []
+    selected_answer = None
+    
+    if current_question.question_type == 'code':
+        # Create form for code submission
+        code_form = CodeSubmissionForm()
+        code_form.language.data = current_question.language  # Default to question language
+        
+        if code_form.validate_on_submit():
+            # Save the code submission
+            if question_submission is None:
+                question_submission = QuestionSubmission(
+                    submission_id=submission.id,
+                    question_id=current_question.id,
+                    code=code_form.code.data,
+                    language=code_form.language.data,
+                    submitted_at=datetime.utcnow()
+                )
+                db.session.add(question_submission)
+            else:
+                question_submission.code = code_form.code.data
+                question_submission.language = code_form.language.data
+                question_submission.submitted_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            # Run test cases
+            test_cases = current_question.test_cases.all()
+            for test_case in test_cases:
+                # Check if we already have a result for this test case
+                test_result = TestResult.query.filter_by(
+                    question_submission_id=question_submission.id,
+                    test_case_id=test_case.id
+                ).first()
+                
+                # Run the test case
+                result = PistonAPI.run_test_case(code_form.language.data, code_form.code.data, test_case)
+                
+                if test_result is None:
+                    test_result = TestResult(
+                        question_submission_id=question_submission.id,
+                        test_case_id=test_case.id,
+                        passed=result['passed'],
+                        output=result['output'],
+                        error=result['error'],
+                        execution_time=result['execution_time']
+                    )
+                    db.session.add(test_result)
+                else:
+                    test_result.passed = result['passed']
+                    test_result.output = result['output']
+                    test_result.error = result['error']
+                    test_result.execution_time = result['execution_time']
+            
+            # Calculate score for this question
+            question_submission.calculate_score()
+            db.session.commit()
+            
+            # Check if all questions have been answered
+            all_answered = True
+            for q in questions:
+                q_submission = QuestionSubmission.query.filter_by(
+                    submission_id=submission.id,
+                    question_id=q.id
+                ).first()
+                if not q_submission:
+                    all_answered = False
+                    break
+            
+            if all_answered:
+                flash('All questions have been answered! You can review your answers or submit the quiz.', 'success')
+            else:
+                # Move to next unanswered question
+                next_question = None
+                found_current = False
+                for q in questions:
+                    if found_current:
+                        q_submission = QuestionSubmission.query.filter_by(
+                            submission_id=submission.id,
+                            question_id=q.id
+                        ).first()
+                        if not q_submission:
+                            next_question = q
+                            break
+                    if q.id == current_question.id:
+                        found_current = True
+                
+                if next_question:
+                    flash('Your answer has been saved. Moving to the next question.', 'success')
+                    return redirect(url_for('take_quiz', quiz_id=quiz_id, submission_id=submission.id, question_id=next_question.id))
+                else:
+                    flash('Your answer has been saved.', 'success')
+                    return redirect(url_for('take_quiz', quiz_id=quiz_id, submission_id=submission.id))
+        
+        # Pre-populate form with existing submission if any
+        if question_submission and not code_form.is_submitted():
+            code_form.code.data = question_submission.code
+            code_form.language.data = question_submission.language
+        elif not code_form.is_submitted():
+            # Use starter code if available
+            code_form.code.data = current_question.starter_code
+        
+        # Get test results for this question
+        if question_submission:
+            test_results = TestResult.query.join(TestCase).filter(
+                TestResult.question_submission_id == question_submission.id,
+                TestCase.is_hidden == False
+            ).all()
+    
+    elif current_question.question_type == 'multiple_choice':
+        # Create form for multiple choice submission
+        multiple_choice_form = MultipleChoiceSubmissionForm()
+        
+        # Get the options for this question
+        options = current_question.options.order_by(QuestionOption.order).all()
+        
+        if request.method == 'POST':
+            # Process form submission
+            selected_option_ids = []
+            for key, value in request.form.items():
+                if key.startswith('selected_options-') and value:
+                    selected_option_ids.append(int(value))
+            
+            # Create or update submission
+            if question_submission is None:
+                question_submission = QuestionSubmission(
+                    submission_id=submission.id,
+                    question_id=current_question.id,
+                    submitted_at=datetime.utcnow()
+                )
+                db.session.add(question_submission)
+                db.session.flush()  # Get the ID without committing
+            else:
+                # Remove existing selected options
+                SelectedOption.query.filter_by(question_submission_id=question_submission.id).delete()
+            
+            # Add selected options
+            for option_id in selected_option_ids:
+                selected_option = SelectedOption(
+                    question_submission_id=question_submission.id,
+                    option_id=option_id
+                )
+                db.session.add(selected_option)
+            
+            db.session.commit()
+            
+            # Calculate score
+            question_submission.calculate_score()
+            db.session.commit()
+            
+            flash('Your answer has been saved.', 'success')
+            
+            # Check if all questions have been answered or move to next unanswered
+            # (Similar to code question handling above)
+            all_answered = True
+            for q in questions:
+                q_submission = QuestionSubmission.query.filter_by(
+                    submission_id=submission.id,
+                    question_id=q.id
+                ).first()
+                if not q_submission:
+                    all_answered = False
+                    break
+            
+            if all_answered:
+                flash('All questions have been answered! You can review your answers or submit the quiz.', 'success')
+            else:
+                # Move to next unanswered question
+                next_question = None
+                found_current = False
+                for q in questions:
+                    if found_current:
+                        q_submission = QuestionSubmission.query.filter_by(
+                            submission_id=submission.id,
+                            question_id=q.id
+                        ).first()
+                        if not q_submission:
+                            next_question = q
+                            break
+                    if q.id == current_question.id:
+                        found_current = True
+                
+                if next_question:
+                    flash('Moving to the next question.', 'success')
+                    return redirect(url_for('take_quiz', quiz_id=quiz_id, submission_id=submission.id, question_id=next_question.id))
+        
+        # Get previously selected options
+        if question_submission:
+            selected_options = [opt.option_id for opt in question_submission.selected_options]
+    
+    elif current_question.question_type == 'true_false':
+        # Create form for true/false submission
+        true_false_form = TrueFalseSubmissionForm()
+        
+        if request.method == 'POST':
+            selected_answer = request.form.get('answer')
+            
+            # Create or update submission
+            if question_submission is None:
+                question_submission = QuestionSubmission(
+                    submission_id=submission.id,
+                    question_id=current_question.id,
+                    submitted_at=datetime.utcnow()
+                )
+                db.session.add(question_submission)
+                db.session.flush()  # Get the ID without committing
+            else:
+                # Remove existing selected option
+                SelectedOption.query.filter_by(question_submission_id=question_submission.id).delete()
+            
+            # Find the option ID based on the selected answer
+            option = None
+            if selected_answer == 'true':
+                option = current_question.options.filter_by(text='True').first()
+            else:
+                option = current_question.options.filter_by(text='False').first()
+            
+            if option:
+                selected_option = SelectedOption(
+                    question_submission_id=question_submission.id,
+                    option_id=option.id
+                )
+                db.session.add(selected_option)
+            
+            db.session.commit()
+            
+            # Calculate score
+            question_submission.calculate_score()
+            db.session.commit()
+            
+            flash('Your answer has been saved.', 'success')
+            
+            # Check if all questions have been answered or move to next unanswered
+            # (Similar to code question handling above)
+            all_answered = True
+            for q in questions:
+                q_submission = QuestionSubmission.query.filter_by(
+                    submission_id=submission.id,
+                    question_id=q.id
+                ).first()
+                if not q_submission:
+                    all_answered = False
+                    break
+            
+            if all_answered:
+                flash('All questions have been answered! You can review your answers or submit the quiz.', 'success')
+            else:
+                # Move to next unanswered question
+                next_question = None
+                found_current = False
+                for q in questions:
+                    if found_current:
+                        q_submission = QuestionSubmission.query.filter_by(
+                            submission_id=submission.id,
+                            question_id=q.id
+                        ).first()
+                        if not q_submission:
+                            next_question = q
+                            break
+                    if q.id == current_question.id:
+                        found_current = True
+                
+                if next_question:
+                    flash('Moving to the next question.', 'success')
+                    return redirect(url_for('take_quiz', quiz_id=quiz_id, submission_id=submission.id, question_id=next_question.id))
+        
+        # Get previously selected answer
+        if question_submission and question_submission.selected_options.first():
+            option = question_submission.selected_options.first().option
+            if option.text == 'True':
+                selected_answer = 'true'
+            else:
+                selected_answer = 'false'
     
     # Format time remaining
     formatted_time = format_time_remaining(time_remaining)
@@ -582,8 +1042,13 @@ def take_quiz(quiz_id, submission_id):
                           submission=submission,
                           questions=questions,
                           current_question=current_question,
-                          form=form,
+                          code_form=code_form,
+                          multiple_choice_form=multiple_choice_form,
+                          true_false_form=true_false_form,
+                          question_submission=question_submission,
                           test_results=test_results,
+                          selected_options=selected_options,
+                          selected_answer=selected_answer,
                           time_remaining=int(time_remaining),
                           formatted_time=formatted_time,
                           title=f'Quiz: {quiz.title}')
@@ -633,12 +1098,20 @@ def student_view_submission(submission_id):
     
     # Get test results for each question
     test_results = {}
+    selected_options = {}
+    
     for q_id, q_submission in question_submissions.items():
-        results = TestResult.query.join(TestCase).filter(
-            TestResult.question_submission_id == q_submission.id,
-            TestCase.is_hidden == False
-        ).all()
-        test_results[q_id] = results
+        question = Question.query.get(q_id)
+        
+        if question.question_type == 'code':
+            results = TestResult.query.join(TestCase).filter(
+                TestResult.question_submission_id == q_submission.id,
+                TestCase.is_hidden == False
+            ).all()
+            test_results[q_id] = results
+        elif question.question_type in ['multiple_choice', 'true_false']:
+            selected_opts = [so.option_id for so in q_submission.selected_options]
+            selected_options[q_id] = selected_opts
     
     return render_template('student/submission_detail.html',
                           submission=submission,
@@ -646,6 +1119,7 @@ def student_view_submission(submission_id):
                           questions=questions,
                           question_submissions=question_submissions,
                           test_results=test_results,
+                          selected_options=selected_options,
                           title='Quiz Results')
 
 @app.route('/student/results')
@@ -659,9 +1133,7 @@ def student_results():
     return render_template('student/results.html',
                           submissions=submissions,
                           title='My Results')
-
 # API routes for AJAX requests
-
 @app.route('/api/run-code', methods=['POST'])
 @login_required
 def api_run_code():
@@ -700,7 +1172,6 @@ def api_time_remaining(submission_id):
     })
 
 # Error handlers
-
 @app.errorhandler(404)
 def not_found_error(error):
     return render_template('errors/404.html'), 404
@@ -713,7 +1184,6 @@ def forbidden_error(error):
 def internal_error(error):
     db.session.rollback()
     return render_template('errors/500.html'), 500
-
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Select Question Type
+{% endblock %}
+
+{% block subtitle %}
+for Quiz: {{ quiz.title }}
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('edit_quiz', quiz_id=quiz.id) }}" class="btn btn-outline-primary">
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-arrow-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+        <line x1="5" y1="12" x2="11" y2="18"></line>
+        <line x1="5" y1="12" x2="11" y2="6"></line>
+    </svg>
+    Back to Quiz
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row row-cards">
+    <div class="col-md-10 offset-md-1">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Select Question Type</h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Choose the type of question you want to create:</p>
+                
+                <div class="row mt-4">
+                    <div class="col-md-4">
+                        <div class="card card-link card-link-pop">
+                            <a href="{{ url_for('create_multiple_choice_question', quiz_id=quiz.id) }}" class="card-body text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-list-check" width="48" height="48" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                    <path d="M3.5 5.5l1.5 1.5l2.5 -2.5" />
+                                    <path d="M3.5 11.5l1.5 1.5l2.5 -2.5" />
+                                    <path d="M3.5 17.5l1.5 1.5l2.5 -2.5" />
+                                    <line x1="11" y1="6" x2="20" y2="6" />
+                                    <line x1="11" y1="12" x2="20" y2="12" />
+                                    <line x1="11" y1="18" x2="20" y2="18" />
+                                </svg>
+                                <h3 class="mt-2">Multiple Choice</h3>
+                                <p class="text-muted">Create a question with multiple options and one or more correct answers.</p>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card card-link card-link-pop">
+                            <a href="{{ url_for('create_true_false_question', quiz_id=quiz.id) }}" class="card-body text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="48" height="48" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                    <circle cx="16" cy="12" r="2" />
+                                    <rect x="2" y="6" width="20" height="12" rx="6" />
+                                </svg>
+                                <h3 class="mt-2">True/False</h3>
+                                <p class="text-muted">Create a statement that students will mark as either true or false.</p>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card card-link card-link-pop">
+                            <a href="{{ url_for('create_code_question', quiz_id=quiz.id) }}" class="card-body text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-code" width="48" height="48" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                    <polyline points="7 8 3 12 7 16" />
+                                    <polyline points="17 8 21 12 17 16" />
+                                    <line x1="14" y1="4" x2="10" y2="20" />
+                                </svg>
+                                <h3 class="mt-2">Code Question</h3>
+                                <p class="text-muted">Create a programming question where students write and submit code.</p>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

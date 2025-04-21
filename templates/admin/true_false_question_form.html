@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css" integrity="sha384-Xi8rHCmBmhbuyyhbI88391ZKP2dmfnOl4rT9ZfRI7mLTdk1wblIUnrIq35nqwEvC" crossorigin="anonymous">
+{% endblock %}
+
+{% block page_title %}
+{% if question %}Edit True/False Question{% else %}Create True/False Question{% endif %}
+{% endblock %}
+
+{% block subtitle %}
+for Quiz: {{ quiz.title }}
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('edit_quiz', quiz_id=quiz.id) }}" class="btn btn-outline-primary">
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-arrow-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+        <line x1="5" y1="12" x2="11" y2="18"></line>
+        <line x1="5" y1="12" x2="11" y2="6"></line>
+    </svg>
+    Back to Quiz
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row row-cards">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">{% if question %}Edit True/False Question{% else %}Create True/False Question{% endif %}</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% if question %}{{ url_for('edit_true_false_question', quiz_id=quiz.id, question_id=question.id) }}{% else %}{{ url_for('create_true_false_question', quiz_id=quiz.id) }}{% endif %}">
+                    {{ form.hidden_tag() }}
+                    {{ form.question_type }}
+                    
+                    <div class="mb-3">
+                        <label class="form-label required">{{ form.title.label }}</label>
+                        <input type="text" class="form-control {% if form.title.errors %}is-invalid{% endif %}" 
+                               name="{{ form.title.name }}" value="{{ form.title.data or '' }}" required>
+                        {% if form.title.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.title.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">{{ form.description.label }}</label>
+                        <textarea class="form-control {% if form.description.errors %}is-invalid{% endif %}" 
+                                  name="{{ form.description.name }}" rows="2">{{ form.description.data or '' }}</textarea>
+                        {% if form.description.errors %}
+                        <div class="invalid-feedback">
+                            {% for error in form.description.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <small class="form-hint">Optional instructions or hints</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label required">{{ form.problem_statement.label }}</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <textarea id="problem-statement" class="form-control {% if form.problem_statement.errors %}is-invalid{% endif %}" 
+                                      name="{{ form.problem_statement.name }}" rows="6" required>{{ form.problem_statement.data or '' }}</textarea>
+                                {% if form.problem_statement.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.problem_statement.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                <small class="form-hint">Enter a statement that is either true or false. You can use Markdown and LaTeX syntax (e.g. $x^2$)</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Preview</label>
+                                <div id="preview" class="border rounded p-3 bg-light" style="min-height: 145px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label required">{{ form.correct_answer.label }}</label>
+                        <div class="d-flex gap-3">
+                            <label class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="{{ form.correct_answer.name }}" value="true" 
+                                       {% if form.correct_answer.data == 'true' %}checked{% endif %} required>
+                                <span class="form-check-label">True</span>
+                            </label>
+                            <label class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="{{ form.correct_answer.name }}" value="false" 
+                                       {% if form.correct_answer.data == 'false' %}checked{% endif %} required>
+                                <span class="form-check-label">False</span>
+                            </label>
+                        </div>
+                        {% if form.correct_answer.errors %}
+                        <div class="invalid-feedback d-block">
+                            {% for error in form.correct_answer.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">{{ form.points.label }}</label>
+                            <input type="number" class="form-control {% if form.points.errors %}is-invalid{% endif %}" 
+                                   name="{{ form.points.name }}" value="{{ form.points.data or '5' }}" required>
+                            {% if form.points.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.points.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">{{ form.order.label }}</label>
+                            <input type="number" class="form-control {% if form.order.errors %}is-invalid{% endif %}" 
+                                   name="{{ form.order.name }}" value="{{ form.order.data or '1' }}" required>
+                            {% if form.order.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.order.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <small class="form-hint">Question sequence number</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-footer">
+                        <button type="submit" class="btn btn-primary">Save Question</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked@4.0.18/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js" integrity="sha384-X/XCfMm41VSsqRNQgDerQczD69XqmjOOOwYQvr/uuC+j4OPoNhVgjdGFwhvN02Ja" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/contrib/auto-render.min.js" integrity="sha384-+XBljXPPiv+OzfbB3cVmLHf4hdUFHlWNZN5spNQ7rmHTXpd7WvJum6fIACpNNfIR" crossorigin="anonymous"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Preview for problem statement
+        const problemStatement = document.getElementById('problem-statement');
+        const preview = document.getElementById('preview');
+        
+        function updatePreview() {
+            let markdown = marked.parse(problemStatement.value);
+            preview.innerHTML = markdown;
+            renderMathInElement(preview, {
+                delimiters: [
+                    {left: "$", right: "$", display: true},
+                    {left: "$", right: "$", display: false}
+                ]
+            });
+        }
+        
+        if (problemStatement && preview) {
+            problemStatement.addEventListener('input', updatePreview);
+            updatePreview(); // Initial render
+        }
+    });
+</script>
+{% endblock %}

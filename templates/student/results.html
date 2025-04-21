@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+My Results
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">My Quiz Submissions</h3>
+    </div>
+    <div class="card-body">
+        {% if submissions %}
+        <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+                <thead>
+                    <tr>
+                        <th>Quiz</th>
+                        <th>Completed On</th>
+                        <th>Score</th>
+                        <th>Percentage</th>
+                        <th>Time Taken</th>
+                        <th class="w-1"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for submission in submissions %}
+                    <tr>
+                        <td>{{ submission.quiz.title }}</td>
+                        <td>{{ submission.completed_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ "%.1f"|format(submission.score) }} / {{ submission.total_points }}</td>
+                        <td>
+                            {% set percentage = 100 * submission.score / submission.total_points if submission.total_points else 0 %}
+                            <div class="clearfix">
+                                <div class="float-start mt-1">
+                                    {{ "%.1f"|format(percentage) }}%
+                                </div>
+                                <div class="float-end">
+                                    <small class="text-muted">
+                                        {% if percentage >= 90 %}A 
+                                        {% elif percentage >= 80 %}B
+                                        {% elif percentage >= 70 %}C
+                                        {% elif percentage >= 60 %}D
+                                        {% else %}F{% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="progress progress-sm">
+                                <div class="progress-bar" style="width: {{ percentage }}%" role="progressbar" 
+                                     aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100"
+                                     aria-label="{{ percentage }}% Complete">
+                                    <span class="visually-hidden">{{ percentage }}% Complete</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% set duration = (submission.completed_at - submission.started_at).total_seconds() // 60 %}
+                            {{ duration }} minutes
+                        </td>
+                        <td>
+                            <a href="{{ url_for('student_view_submission', submission_id=submission.id) }}" class="btn btn-outline-primary btn-sm">
+                                View Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty">
+            <div class="empty-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                    <path d="M9 10l.01 0" />
+                    <path d="M15 10l.01 0" />
+                    <path d="M9.5 15.25a3.5 3.5 0 0 1 5 0" />
+                </svg>
+            </div>
+            <p class="empty-title">No completed quizzes yet</p>
+            <p class="empty-subtitle text-muted">
+                You haven't completed any quizzes yet. Go to the dashboard to take a quiz.
+            </p>
+            <div class="empty-action">
+                <a href="{{ url_for('student_dashboard') }}" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <rect x="4" y="4" width="6" height="6" rx="1" />
+                        <rect x="14" y="4" width="6" height="6" rx="1" />
+                        <rect x="4" y="14" width="6" height="6" rx="1" />
+                        <rect x="14" y="14" width="6" height="6" rx="1" />
+                    </svg>
+                    Go to Dashboard
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

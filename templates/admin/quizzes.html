@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Manage Quizzes
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('create_quiz') }}" class="btn btn-primary">
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+    Create New Quiz
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Your Quizzes</h3>
+    </div>
+    <div class="card-body">
+        {% if quizzes %}
+        <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+                <thead>
+                    <tr>
+                        <th>Quiz Title</th>
+                        <th>Questions</th>
+                        <th>Time Limit</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th class="w-1">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for quiz in quizzes %}
+                    <tr>
+                        <td>{{ quiz.title }}</td>
+                        <td>{{ quiz.questions.count() }} questions</td>
+                        <td>{{ quiz.time_limit }} minutes</td>
+                        <td>
+                            {% if quiz.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ quiz.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <div class="btn-list flex-nowrap">
+                                <a href="{{ url_for('edit_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-primary">
+                                    Edit
+                                </a>
+                                <button type="button" class="btn btn-sm btn-danger" 
+                                        data-bs-toggle="modal" data-bs-target="#modal-delete-quiz-{{ quiz.id }}">
+                                    Delete
+                                </button>
+                            </div>
+                            
+                            <!-- Delete confirmation modal -->
+                            <div class="modal modal-blur fade" id="modal-delete-quiz-{{ quiz.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered" role="document">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Delete Quiz</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>Are you sure you want to delete the quiz <strong>"{{ quiz.title }}"</strong>?</p>
+                                            <p class="text-danger">This will also delete all questions, test cases, and student submissions for this quiz. This action cannot be undone.</p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
+                                                Cancel
+                                            </button>
+                                            <form action="{{ url_for('delete_quiz', quiz_id=quiz.id) }}" method="post">
+                                                <button type="submit" class="btn btn-danger ms-auto">
+                                                    Yes, delete quiz
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty">
+            <div class="empty-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                    <path d="M9 10l.01 0" />
+                    <path d="M15 10l.01 0" />
+                    <path d="M9.5 15.25a3.5 3.5 0 0 1 5 0" />
+                </svg>
+            </div>
+            <p class="empty-title">No quizzes created yet</p>
+            <p class="empty-subtitle text-muted">
+                Start by creating your first quiz.
+            </p>
+            <div class="empty-action">
+                <a href="{{ url_for('create_quiz') }}" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    Create New Quiz
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

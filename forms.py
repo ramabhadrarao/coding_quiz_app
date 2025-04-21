@@ -1,6 +1,7 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, PasswordField, BooleanField, IntegerField, SelectField
+from wtforms import StringField, TextAreaField, PasswordField, BooleanField, IntegerField, SelectField, RadioField, FieldList, FormField, HiddenField, FileField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Optional
+from flask_wtf.file import FileAllowed
 from models import User
 
 class LoginForm(FlaskForm):
@@ -31,19 +32,43 @@ class QuizForm(FlaskForm):
     time_limit = IntegerField('Time Limit (minutes)', validators=[DataRequired()])
     is_active = BooleanField('Active')
 
-class QuestionForm(FlaskForm):
+class BaseQuestionForm(FlaskForm):
     title = StringField('Question Title', validators=[DataRequired()])
     description = TextAreaField('Description')
     problem_statement = TextAreaField('Problem Statement', validators=[DataRequired()])
-    starter_code = TextAreaField('Starter Code', validators=[Optional()])
-    language = SelectField('Language', validators=[DataRequired()])
     points = IntegerField('Points', validators=[DataRequired()])
     order = IntegerField('Order', validators=[DataRequired()])
+    question_type = HiddenField('Question Type', validators=[DataRequired()])
+
+class CodeQuestionForm(BaseQuestionForm):
+    starter_code = TextAreaField('Starter Code', validators=[Optional()])
+    language = SelectField('Language', validators=[DataRequired()])
     
     def __init__(self, *args, **kwargs):
-        super(QuestionForm, self).__init__(*args, **kwargs)
+        super(CodeQuestionForm, self).__init__(*args, **kwargs)
         from config import Config
         self.language.choices = [(lang, details['name']) for lang, details in Config.SUPPORTED_LANGUAGES.items()]
+        self.question_type.data = 'code'
+
+class OptionForm(FlaskForm):
+    text = TextAreaField('Option Text', validators=[DataRequired()])
+    is_correct = BooleanField('Correct Answer')
+    order = IntegerField('Order', validators=[DataRequired()])
+    image = FileField('Image (Optional)', validators=[Optional(), FileAllowed(['jpg', 'png', 'gif'], 'Images only!')])
+
+class MultipleChoiceQuestionForm(BaseQuestionForm):
+    options = FieldList(FormField(OptionForm), min_entries=2)
+    
+    def __init__(self, *args, **kwargs):
+        super(MultipleChoiceQuestionForm, self).__init__(*args, **kwargs)
+        self.question_type.data = 'multiple_choice'
+
+class TrueFalseQuestionForm(BaseQuestionForm):
+    correct_answer = RadioField('Correct Answer', choices=[('true', 'True'), ('false', 'False')], validators=[DataRequired()])
+    
+    def __init__(self, *args, **kwargs):
+        super(TrueFalseQuestionForm, self).__init__(*args, **kwargs)
+        self.question_type.data = 'true_false'
 
 class TestCaseForm(FlaskForm):
     input_data = TextAreaField('Input Data')
@@ -59,3 +84,9 @@ class CodeSubmissionForm(FlaskForm):
         super(CodeSubmissionForm, self).__init__(*args, **kwargs)
         from config import Config
         self.language.choices = [(lang, details['name']) for lang, details in Config.SUPPORTED_LANGUAGES.items()]
+
+class MultipleChoiceSubmissionForm(FlaskForm):
+    selected_options = FieldList(BooleanField(''))
+
+class TrueFalseSubmissionForm(FlaskForm):
+    answer = RadioField('Your Answer', choices=[('true', 'True'), ('false', 'False')], validators=[DataRequired()])

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Quiz Results: {{ quiz.title }}
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('student_results') }}" class="btn btn-outline-primary">
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-arrow-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+        <line x1="5" y1="12" x2="11" y2="18"></line>
+        <line x1="5" y1="12" x2="11" y2="6"></line>
+    </svg>
+    Back to My Results
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Results Summary</h3>
+    </div>
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="h1 mb-3">
+                    Final Score: {{ "%.1f"|format(submission.score) }} / {{ submission.total_points }}
+                </div>
+                <div class="h3 text-muted">
+                    {{ "%.1f"|format(100 * submission.score / submission.total_points if submission.total_points else 0) }}%
+                </div>
+            </div>
+            <div class="col-md-6">
+                <dl class="row">
+                    <dt class="col-5">Started at:</dt>
+                    <dd class="col-7">{{ submission.started_at.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+                    
+                    <dt class="col-5">Completed at:</dt>
+                    <dd class="col-7">{{ submission.completed_at.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+                    
+                    <dt class="col-5">Time taken:</dt>
+                    <dd class="col-7">
+                        {% set duration = (submission.completed_at - submission.started_at).total_seconds() // 60 %}
+                        {{ duration }} minutes
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Question Submissions -->
+<div class="accordion" id="accordion-questions">
+    {% for question in questions %}
+        {% set q_submission = question_submissions.get(question.id) %}
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="heading-question-{{ question.id }}">
+                <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" 
+                        data-bs-target="#collapse-question-{{ question.id }}" aria-expanded="{{ 'true' if loop.first else 'false' }}" 
+                        aria-controls="collapse-question-{{ question.id }}">
+                    Question {{ loop.index }}: {{ question.title }}
+                    {% if q_submission %}
+                        {% if q_submission.score == question.points %}
+                            <span class="badge bg-success ms-2">{{ q_submission.score }} / {{ question.points }}</span>
+                        {% elif q_submission.score > 0 %}
+                            <span class="badge bg-warning ms-2">{{ q_submission.score }} / {{ question.points }}</span>
+                        {% else %}
+                            <span class="badge bg-danger ms-2">{{ q_submission.score }} / {{ question.points }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge bg-secondary ms-2">Not Attempted</span>
+                    {% endif %}
+                </button>
+            </h2>
+            <div id="collapse-question-{{ question.id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" 
+                 aria-labelledby="heading-question-{{ question.id }}" data-bs-parent="#accordion-questions">
+                <div class="accordion-body">
+                    <div class="markdown mb-3">
+                        {{ question.problem_statement|safe }}
+                    </div>
+                    
+                    {% if q_submission %}
+                        <div class="row">
+                            <div class="col-12">
+                                <h4>Your Solution</h4>
+                                <pre class="language-{{ q_submission.language }}"><code>{{ q_submission.code }}</code></pre>
+                            </div>
+                        </div>
+                        
+                        <!-- Test Results -->
+                        {% set results = test_results.get(question.id, []) %}
+                        {% if results %}
+                            <div class="mt-4">
+                                <h4>Test Results</h4>
+                                <div class="table-responsive">
+                                    <table class="table table-vcenter">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Input</th>
+                                                <th>Expected Output</th>
+                                                <th>Your Output</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for result in results %}
+                                            <tr>
+                                                <td>{{ loop.index }}</td>
+                                                <td><pre class="mb-0">{{ result.test_case.input_data or 'No input' }}</pre></td>
+                                                <td><pre class="mb-0">{{ result.test_case.expected_output }}</pre></td>
+                                                <td>
+                                                    <pre class="mb-0">{{ result.output or 'No output' }}</pre>
+                                                    {% if result.error %}
+                                                    <pre class="mb-0 text-danger">{{ result.error }}</pre>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if result.passed %}
+                                                    <span class="badge bg-success">Passed</span>
+                                                    {% else %}
+                                                    <span class="badge bg-danger">Failed</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="empty">
+                            <div class="empty-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+                                    <path d="M9 10l.01 0" />
+                                    <path d="M15 10l.01 0" />
+                                    <path d="M9.5 15.25a3.5 3.5 0 0 1 5 0" />
+                                </svg>
+                            </div>
+                            <p class="empty-title">Question not attempted</p>
+                            <p class="empty-subtitle text-muted">
+                                You did not submit an answer for this question.
+                            </p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}
