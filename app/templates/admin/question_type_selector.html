@@ -9,7 +9,7 @@ for Quiz: {{ quiz.title }}
 {% endblock %}
 
 {% block page_actions %}
-<a href="{{ url_for('edit_quiz', quiz_id=quiz.id) }}" class="btn btn-outline-primary">
+<a href="{{ url_for('admin.edit_quiz', quiz_id=quiz.id) }}" class="btn btn-outline-primary">
     <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-arrow-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
         <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -33,7 +33,7 @@ for Quiz: {{ quiz.title }}
                 <div class="row mt-4">
                     <div class="col-md-4">
                         <div class="card card-link card-link-pop">
-                            <a href="{{ url_for('create_multiple_choice_question', quiz_id=quiz.id) }}" class="card-body text-center">
+                            <a href="{{ url_for('admin.create_multiple_choice_question', quiz_id=quiz.id) }}" class="card-body text-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-list-check" width="48" height="48" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                                     <path d="M3.5 5.5l1.5 1.5l2.5 -2.5" />
@@ -51,7 +51,7 @@ for Quiz: {{ quiz.title }}
                     
                     <div class="col-md-4">
                         <div class="card card-link card-link-pop">
-                            <a href="{{ url_for('create_true_false_question', quiz_id=quiz.id) }}" class="card-body text-center">
+                            <a href="{{ url_for('admin.create_true_false_question', quiz_id=quiz.id) }}" class="card-body text-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="48" height="48" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                                     <circle cx="16" cy="12" r="2" />
@@ -65,7 +65,7 @@ for Quiz: {{ quiz.title }}
                     
                     <div class="col-md-4">
                         <div class="card card-link card-link-pop">
-                            <a href="{{ url_for('create_code_question', quiz_id=quiz.id) }}" class="card-body text-center">
+                            <a href="{{ url_for('admin.create_code_question', quiz_id=quiz.id) }}" class="card-body text-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-code" width="48" height="48" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                                     <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                                     <polyline points="7 8 3 12 7 16" />

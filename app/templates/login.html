@@ -7,7 +7,7 @@
     </div>
     <div class="card card-md">
         <div class="card-body">
-            <form method="post" action="{{ url_for('login') }}">
+            <form method="post" action="{{ url_for('auth.login') }}">
                 {{ form.hidden_tag() }}
                 <div class="mb-3">
                     <label class="form-label">{{ form.username.label }}</label>
@@ -54,7 +54,7 @@
         </div>
     </div>
     <div class="text-center text-muted mt-3">
-        Don't have an account yet? <a href="{{ url_for('register') }}" tabindex="-1">Sign up</a>
+        Don't have an account yet? <a href="{{ url_for('auth.register') }}" tabindex="-1">Sign up</a>
     </div>
 </div>
 {% endblock %}

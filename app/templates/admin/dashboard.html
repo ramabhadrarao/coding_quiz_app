@@ -123,7 +123,7 @@
             <div class="card-header">
                 <h3 class="card-title">Recent Quiz Submissions</h3>
                 <div class="card-actions">
-                    <a href="{{ url_for('admin_results') }}" class="btn btn-primary">
+                    <a href="{{ url_for('admin.results') }}" class="btn btn-primary">
                         View All Results
                     </a>
                 </div>
@@ -157,7 +157,7 @@
                                     {{ duration }} minutes
                                 </td>
                                 <td>
-                                    <a href="{{ url_for('admin_view_submission', submission_id=submission.id) }}" class="btn btn-outline-primary btn-sm">
+                                    <a href="{{ url_for('admin.view_submission', submission_id=submission.id) }}" class="btn btn-outline-primary btn-sm">
                                         View Details
                                     </a>
                                 </td>
@@ -194,7 +194,7 @@
             <div class="card-header">
                 <h3 class="card-title">Your Quizzes</h3>
                 <div class="card-actions">
-                    <a href="{{ url_for('create_quiz') }}" class="btn btn-primary">
+                    <a href="{{ url_for('admin.create_quiz') }}" class="btn btn-primary">
                         <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                             <line x1="12" y1="5" x2="12" y2="19" />
@@ -234,7 +234,7 @@
                                 <td>{{ quiz.created_at.strftime('%Y-%m-%d') }}</td>
                                 <td>
                                     <div class="btn-list flex-nowrap">
-                                        <a href="{{ url_for('edit_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-primary">
+                                        <a href="{{ url_for('admin.edit_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-primary">
                                             Edit
                                         </a>
                                         <button type="button" class="btn btn-sm btn-danger" 
@@ -259,7 +259,7 @@
                                                     <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
                                                         Cancel
                                                     </button>
-                                                    <form action="{{ url_for('delete_quiz', quiz_id=quiz.id) }}" method="post">
+                                                    <form action="{{ url_for('admin.delete_quiz', quiz_id=quiz.id) }}" method="post">
                                                         <button type="submit" class="btn btn-danger ms-auto">
                                                             Yes, delete quiz
                                                         </button>
@@ -290,7 +290,7 @@
                         Start by creating your first quiz.
                     </p>
                     <div class="empty-action">
-                        <a href="{{ url_for('create_quiz') }}" class="btn btn-primary">
+                        <a href="{{ url_for('admin.create_quiz') }}" class="btn btn-primary">
                             <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                                 <line x1="12" y1="5" x2="12" y2="19" />
