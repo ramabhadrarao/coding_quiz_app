@@ -5,13 +5,11 @@ import logging
 import os
 import bleach
 from functools import lru_cache
-from config import Config
-from werkzeug.utils import secure_filename
 import secrets
 from datetime import datetime, timedelta
-from flask_login import LoginManager, login_required, current_user
-from functools import wraps
-from flask import abort, request, jsonify
+
+# Import configuration 
+from config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -284,69 +282,14 @@ def is_valid_markdown(text):
     
     return False
 
-# Configuration for file uploads
-UPLOAD_FOLDER = os.path.join(app.root_path, 'static/uploads')
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB max limit
-
-# Secure filename generation
 def secure_filename_with_salt(filename):
+    """Generate a secure filename with a salt and timestamp"""
     if not filename:
         return None
+    
+    from werkzeug.utils import secure_filename
+    
     _, ext = os.path.splitext(secure_filename(filename))
     salt = secrets.token_hex(8)
     timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
     return f"{timestamp}_{salt}{ext}"
-
-# Login manager setup
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-login_manager.session_protection = 'strong'
-
-# Admin required decorator
-def admin_required(func):
-    @wraps(func)
-    @login_required
-    def decorated_view(*args, **kwargs):
-        if not current_user.is_admin:
-            abort(403)
-        return func(*args, **kwargs)
-    return decorated_view
-
-login_attempts = {}
-
-@app.before_request
-def limit_login_attempts():
-    if request.endpoint == 'login' and request.method == 'POST':
-        ip = request.remote_addr
-        if ip not in login_attempts:
-            login_attempts[ip] = {'count': 0, 'reset_time': datetime.utcnow() + timedelta(minutes=15)}
-        # ... rate limiting logic
-
-@app.errorhandler(404)
-def not_found_error(error):
-    return render_template('errors/404.html'), 404
-
-@app.errorhandler(413)
-def too_large_error(error):
-    return render_template('errors/413.html', error="File too large. Maximum size: 5MB"), 413
-
-@app.errorhandler(500)
-def internal_error(error):
-    db.session.rollback()
-    app.logger.error(f"Internal server error: {str(error)}")
-    return render_template('errors/500.html'), 500
-
-@app.route('/api/run-code', methods=['POST'])
-@login_required
-def api_run_code():
-    try:
-        data = request.get_json()
-        # Validation checks
-        if not data or 'code' not in data or 'language' not in data:
-            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-        # ... code execution logic
-    except Exception as e:
-        app.logger.error(f"Error in /api/run-code: {str(e)}")
-        return jsonify({'success': False, 'error': 'Server error occurred'}), 500

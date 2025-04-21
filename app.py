@@ -11,9 +11,10 @@ from functools import wraps
 
 from config import Config
 from models import db, User, Quiz, Question, TestCase, Submission, QuestionSubmission, TestResult, QuestionOption, SelectedOption
-from forms import (LoginForm, RegistrationForm, QuizForm, QuestionForm, 
-                  TestCaseForm, CodeSubmissionForm, MultipleChoiceQuestionForm,
-                  TrueFalseQuestionForm, MultipleChoiceSubmissionForm, TrueFalseSubmissionForm,
+from forms import (LoginForm, RegistrationForm, QuizForm, CodeQuestionForm,  # Changed from QuestionForm
+                  TestCaseForm, MultipleChoiceQuestionForm,
+                  TrueFalseQuestionForm, CodeSubmissionForm,
+                  MultipleChoiceSubmissionForm, TrueFalseSubmissionForm,
                   OptionForm)
 from utils import PistonAPI, format_time_remaining
 
@@ -1194,8 +1195,13 @@ def forbidden_error(error):
 def internal_error(error):
     db.session.rollback()
     return render_template('errors/500.html'), 500
+
 if __name__ == '__main__':
     with app.app_context():
+        # Drop all existing tables (be careful with this in production!)
+        db.drop_all()
+        
+        # Recreate all tables with the latest schema
         db.create_all()
         
         # Create admin user if not exists
