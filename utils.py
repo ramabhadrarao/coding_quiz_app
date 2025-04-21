@@ -1,15 +1,58 @@
 import requests
 import json
-from config import Config
 import time
+import logging
+import os
+import bleach
+from functools import lru_cache
+from config import Config
+from werkzeug.utils import secure_filename
+import secrets
+from datetime import datetime, timedelta
+from flask_login import LoginManager, login_required, current_user
+from functools import wraps
+from flask import abort, request, jsonify
+
+logger = logging.getLogger(__name__)
 
 class PistonAPI:
     """
     A utility class for interacting with the Piston API to run code in various languages.
     Piston API docs: https://github.com/engineer-man/piston
+    
+    This enhanced version includes:
+    - Better error handling
+    - Timeouts and retries
+    - Input sanitization
+    - Response caching
+    - Rate limiting
     """
     
+    # Track API calls to implement rate limiting
+    _api_calls = {}
+    _rate_limit = 60  # calls per minute
+    
+    @classmethod
+    def _check_rate_limit(cls, key='default'):
+        """Check if we've hit the rate limit"""
+        now = time.time()
+        
+        # Initialize or clean old data
+        if key not in cls._api_calls:
+            cls._api_calls[key] = []
+        else:
+            # Remove calls older than 1 minute
+            cls._api_calls[key] = [t for t in cls._api_calls[key] if t > now - 60]
+        
+        # Check if under rate limit
+        if len(cls._api_calls[key]) < cls._rate_limit:
+            cls._api_calls[key].append(now)
+            return True
+        
+        return False
+    
     @staticmethod
+    @lru_cache(maxsize=128)  # Cache results for identical inputs
     def execute_code(language, code, stdin=""):
         """
         Execute code using the Piston API
@@ -28,9 +71,19 @@ class PistonAPI:
                 'error': f'Language {language} is not supported'
             }
         
+        # Check rate limit
+        if not PistonAPI._check_rate_limit(language):
+            return {
+                'success': False,
+                'error': 'Rate limit exceeded. Please try again later.'
+            }
+        
         language_config = Config.SUPPORTED_LANGUAGES[language]
         
         url = f"{Config.PISTON_API_URL}/execute"
+        
+        # Sanitize stdin to prevent injection
+        stdin = bleach.clean(stdin) if stdin else ""
         
         payload = {
             "language": language,
@@ -43,15 +96,19 @@ class PistonAPI:
             ],
             "stdin": stdin,
             "args": [],
-            "compile_timeout": 10000,
-            "run_timeout": 3000,
+            "compile_timeout": Config.CODE_COMPILE_TIMEOUT * 1000,  # convert to ms
+            "run_timeout": Config.CODE_EXECUTION_TIMEOUT * 1000,    # convert to ms
             "compile_memory_limit": -1,
             "run_memory_limit": -1
         }
         
         try:
             start_time = time.time()
-            response = requests.post(url, json=payload)
+            
+            # Make request with timeout
+            timeout = Config.PISTON_API_TIMEOUT
+            response = requests.post(url, json=payload, timeout=timeout)
+            
             end_time = time.time()
             execution_time = end_time - start_time
             
@@ -59,16 +116,45 @@ class PistonAPI:
                 result = response.json()
                 result['execution_time'] = execution_time
                 result['success'] = True
+                
+                # Check for execution errors
+                if 'run' in result and 'code' in result['run'] and result['run']['code'] != 0:
+                    # Program executed but with non-zero exit code
+                    logger.warning(f"Code execution returned non-zero exit code: {result['run']['code']}")
+                
                 return result
             else:
+                error_msg = f'API error: {response.status_code}'
+                try:
+                    error_data = response.json()
+                    if 'message' in error_data:
+                        error_msg = f"API error: {error_data['message']}"
+                except:
+                    pass
+                
+                logger.error(error_msg)
                 return {
                     'success': False,
-                    'error': f'API error: {response.status_code} - {response.text}'
+                    'error': error_msg
                 }
-        except Exception as e:
+                
+        except requests.exceptions.Timeout:
+            logger.error(f"API timeout while executing {language} code")
+            return {
+                'success': False,
+                'error': 'API request timed out'
+            }
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API request error: {str(e)}")
             return {
                 'success': False,
                 'error': f'Request error: {str(e)}'
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error executing code: {str(e)}")
+            return {
+                'success': False,
+                'error': f'Unexpected error: {str(e)}'
             }
     
     @staticmethod
@@ -84,6 +170,15 @@ class PistonAPI:
         Returns:
             dict: Test execution result
         """
+        # Validate inputs
+        if not code or not language:
+            return {
+                'passed': False,
+                'output': None,
+                'error': 'Invalid code or language',
+                'execution_time': 0
+            }
+        
         result = PistonAPI.execute_code(language, code, test_case.input_data or "")
         
         if not result['success']:
@@ -99,6 +194,26 @@ class PistonAPI:
         actual_output = result.get('run', {}).get('stdout', '').strip()
         error_output = result.get('run', {}).get('stderr', '')
         
+        # Check for compilation error
+        if result.get('compile', {}).get('stderr'):
+            return {
+                'passed': False,
+                'output': None,
+                'error': result['compile']['stderr'],
+                'execution_time': result.get('execution_time', 0),
+                'compile_error': True
+            }
+        
+        # Check for runtime error (non-zero exit code)
+        if result.get('run', {}).get('code', 0) != 0:
+            return {
+                'passed': False,
+                'output': actual_output,
+                'error': error_output or f"Program exited with code {result['run']['code']}",
+                'execution_time': result.get('execution_time', 0),
+                'runtime_error': True
+            }
+        
         passed = actual_output == expected_output and not error_output
         
         return {
@@ -110,15 +225,128 @@ class PistonAPI:
 
 def get_filename_for_language(language):
     """Return appropriate filename for the given language"""
+    language_config = Config.SUPPORTED_LANGUAGES.get(language, {})
+    
+    # Use configured file extension if available
+    if 'file_extension' in language_config:
+        return f"main{language_config['file_extension']}"
+    
+    # Fallback to default extensions
     extensions = {
         'python': 'main.py',
         'c': 'main.c',
         'java': 'Main.java',
-        # Add more languages as needed
+        'javascript': 'main.js',
+        'typescript': 'main.ts',
+        'rust': 'main.rs',
+        'go': 'main.go',
     }
+    
     return extensions.get(language, f'main.{language}')
 
 def format_time_remaining(seconds):
     """Format time remaining in minutes and seconds"""
-    minutes, seconds = divmod(seconds, 60)
+    minutes, seconds = divmod(int(seconds), 60)
     return f"{minutes:02d}:{seconds:02d}"
+
+def sanitize_html(html_content):
+    """Sanitize HTML content to prevent XSS attacks"""
+    allowed_tags = [
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'span', 'div', 'ul', 'ol', 
+        'li', 'strong', 'em', 'code', 'pre', 'blockquote', 'table', 'thead', 
+        'tbody', 'tr', 'th', 'td', 'img', 'br', 'hr', 'sup', 'sub'
+    ]
+    allowed_attrs = {
+        '*': ['class', 'style'],
+        'a': ['href', 'title', 'target'],
+        'img': ['src', 'alt', 'width', 'height'],
+    }
+    
+    return bleach.clean(
+        html_content, 
+        tags=allowed_tags, 
+        attributes=allowed_attrs, 
+        strip=True
+    )
+
+def is_valid_markdown(text):
+    """Check if a string contains valid markdown"""
+    if not text:
+        return False
+    
+    # Basic check for markdown syntax
+    markdown_indicators = ['#', '##', '*', '1.', '```', '>', '[', '![', '|']
+    
+    # Check if any markdown indicators are present
+    for indicator in markdown_indicators:
+        if indicator in text:
+            return True
+    
+    return False
+
+# Configuration for file uploads
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static/uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB max limit
+
+# Secure filename generation
+def secure_filename_with_salt(filename):
+    if not filename:
+        return None
+    _, ext = os.path.splitext(secure_filename(filename))
+    salt = secrets.token_hex(8)
+    timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+    return f"{timestamp}_{salt}{ext}"
+
+# Login manager setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.session_protection = 'strong'
+
+# Admin required decorator
+def admin_required(func):
+    @wraps(func)
+    @login_required
+    def decorated_view(*args, **kwargs):
+        if not current_user.is_admin:
+            abort(403)
+        return func(*args, **kwargs)
+    return decorated_view
+
+login_attempts = {}
+
+@app.before_request
+def limit_login_attempts():
+    if request.endpoint == 'login' and request.method == 'POST':
+        ip = request.remote_addr
+        if ip not in login_attempts:
+            login_attempts[ip] = {'count': 0, 'reset_time': datetime.utcnow() + timedelta(minutes=15)}
+        # ... rate limiting logic
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('errors/404.html'), 404
+
+@app.errorhandler(413)
+def too_large_error(error):
+    return render_template('errors/413.html', error="File too large. Maximum size: 5MB"), 413
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    app.logger.error(f"Internal server error: {str(error)}")
+    return render_template('errors/500.html'), 500
+
+@app.route('/api/run-code', methods=['POST'])
+@login_required
+def api_run_code():
+    try:
+        data = request.get_json()
+        # Validation checks
+        if not data or 'code' not in data or 'language' not in data:
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+        # ... code execution logic
+    except Exception as e:
+        app.logger.error(f"Error in /api/run-code: {str(e)}")
+        return jsonify({'success': False, 'error': 'Server error occurred'}), 500

@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css">
 <style>
     .CodeMirror {
         height: 400px;
@@ -30,6 +33,27 @@
         50% { opacity: 0.5; }
         100% { opacity: 1; }
     }
+    .question-progress {
+        height: 8px;
+        margin-bottom: 20px;
+    }
+    .markdown img {
+        max-width: 100%;
+        height: auto;
+    }
+    .test-result-badge {
+        font-size: 0.9rem;
+        padding: 5px 10px;
+    }
+    .tooltip-inner {
+        max-width: 300px;
+    }
+    .question-type-badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        margin-left: 8px;
+        text-transform: uppercase;
+    }
 </style>
 {% endblock %}
 
@@ -42,14 +66,64 @@ Time Remaining: <span id="timer" data-seconds="{{ time_remaining }}">{{ formatte
 {% endblock %}
 
 {% block page_actions %}
-<form action="{{ url_for('submit_quiz', quiz_id=quiz.id, submission_id=submission.id) }}" method="post" id="submit-form">
-    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirm-submit-modal">
-        Submit Quiz
+<div class="d-flex gap-2">
+    <button type="button" id="prev-question-btn" class="btn btn-outline-primary" {% if questions.index(current_question) == 0 %}disabled{% endif %}>
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-arrow-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <line x1="5" y1="12" x2="11" y2="18"></line>
+            <line x1="5" y1="12" x2="11" y2="6"></line>
+        </svg>
+        Previous
     </button>
-</form>
+    <button type="button" id="next-question-btn" class="btn btn-outline-primary" {% if questions.index(current_question) == questions|length - 1 %}disabled{% endif %}>
+        Next
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-arrow-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <line x1="13" y1="18" x2="19" y2="12"></line>
+            <line x1="13" y1="6" x2="19" y2="12"></line>
+        </svg>
+    </button>
+    <form action="{{ url_for('submit_quiz', quiz_id=quiz.id, submission_id=submission.id) }}" method="post" id="submit-form">
+        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirm-submit-modal">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-device-floppy" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                <path d="M6 4h10l4 4v10a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2"></path>
+                <circle cx="12" cy="14" r="2"></circle>
+                <polyline points="14 4 14 8 8 8 8 4"></polyline>
+            </svg>
+            Submit Quiz
+        </button>
+    </form>
+</div>
 {% endblock %}
 
 {% block content %}
+<!-- Progress bar showing completed questions -->
+{% set total_questions = questions|length %}
+{% set answered_questions = 0 %}
+{% for q in questions %}
+    {% if submission.question_submissions.filter_by(question_id=q.id).first() %}
+        {% set answered_questions = answered_questions + 1 %}
+    {% endif %}
+{% endfor %}
+{% set progress_percentage = (answered_questions / total_questions * 100)|int %}
+
+<div class="card mb-3">
+    <div class="card-body p-2">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted">Progress: {{ answered_questions }}/{{ total_questions }} questions answered</span>
+            <span class="text-muted">{{ progress_percentage }}% complete</span>
+        </div>
+        <div class="progress question-progress">
+            <div class="progress-bar bg-primary" style="width: {{ progress_percentage }}%" role="progressbar" aria-valuenow="{{ progress_percentage }}" aria-valuemin="0" aria-valuemax="100" aria-label="{{ progress_percentage }}% Complete">
+                <span class="visually-hidden">{{ progress_percentage }}% Complete</span>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <!-- Question Navigation Sidebar -->
     <div class="col-12 col-md-3">
@@ -68,10 +142,11 @@ Time Remaining: <span id="timer" data-seconds="{{ time_remaining }}">{{ formatte
                             </div>
                             <div class="col text-truncate">
                                 {{ question.title }}
+                                <span class="badge question-type-badge bg-azure-lt">{{ question.question_type }}</span>
                             </div>
                             <div class="col-auto">
                                 {% if has_submission %}
-                                    <span class="badge bg-success">Attempted</span>
+                                    <span class="badge bg-success">Complete</span>
                                 {% else %}
                                     <span class="badge bg-muted">Pending</span>
                                 {% endif %}
@@ -91,7 +166,7 @@ Time Remaining: <span id="timer" data-seconds="{{ time_remaining }}">{{ formatte
                     Question {{ questions.index(current_question) + 1 }}: {{ current_question.title }}
                 </h3>
                 <div class="card-actions">
-                    <span class="badge bg-blue">{{ current_question.points }} points</span>
+                    <span class="badge bg-blue" data-bs-toggle="tooltip" data-bs-placement="left" title="Points for this question">{{ current_question.points }} points</span>
                 </div>
             </div>
             <div class="card-body">
@@ -100,42 +175,126 @@ Time Remaining: <span id="timer" data-seconds="{{ time_remaining }}">{{ formatte
                 </div>
                 
                 {% if current_question.description %}
-                <div class="mt-3">
-                    <p class="text-muted">{{ current_question.description|safe }}</p>
+                <div class="alert alert-info mt-3">
+                    <div class="d-flex">
+                        <div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                <circle cx="12" cy="12" r="9"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                        </div>
+                        <div>{{ current_question.description|safe }}</div>
+                    </div>
                 </div>
                 {% endif %}
                 
                 <div class="mt-4">
-                    <form method="post" action="{{ url_for('take_quiz', quiz_id=quiz.id, submission_id=submission.id, question_id=current_question.id) }}">
-                        {{ form.hidden_tag() }}
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Your Code</label>
-                            {{ form.code(id="code-editor") }}
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">{{ form.language.label }}</label>
-                            {{ form.language(class="form-select") }}
-                        </div>
-                        
-                        <div class="d-flex gap-2">
-                            <button type="button" id="run-code-btn" class="btn btn-success">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-player-play" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                    <path d="M7 4v16l13 -8z"></path>
-                                </svg>
-                                Run Code
-                            </button>
-                            <button type="submit" class="btn btn-primary">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-check" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
-                                    <path d="M5 12l5 5l10 -10"></path>
-                                </svg>
-                                Submit Answer
-                            </button>
-                        </div>
-                    </form>
+                    <!-- Different question types have different UI -->
+                    {% if current_question.question_type == 'code' %}
+                        <form method="post" action="{{ url_for('take_quiz', quiz_id=quiz.id, submission_id=submission.id, question_id=current_question.id) }}">
+                            {{ code_form.hidden_tag() }}
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Your Code</label>
+                                {{ code_form.code(id="code-editor") }}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">{{ code_form.language.label }}</label>
+                                {{ code_form.language(class="form-select") }}
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button type="button" id="run-code-btn" class="btn btn-success">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-player-play" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                        <path d="M7 4v16l13 -8z"></path>
+                                    </svg>
+                                    Run Code
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-check" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                        <path d="M5 12l5 5l10 -10"></path>
+                                    </svg>
+                                    Submit Answer
+                                </button>
+                            </div>
+                        </form>
+                    {% elif current_question.question_type == 'multiple_choice' %}
+                        <form method="post" action="{{ url_for('take_quiz', quiz_id=quiz.id, submission_id=submission.id, question_id=current_question.id) }}">
+                            {{ multiple_choice_form.hidden_tag() if multiple_choice_form }}
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Select the correct answer(s):</label>
+                                {% for option in current_question.options.order_by(QuestionOption.order).all() %}
+                                <div class="form-selectgroup form-selectgroup-boxes d-flex flex-column">
+                                    <label class="form-selectgroup-item flex-fill">
+                                        <input type="checkbox" name="selected_options-{{ loop.index0 }}" value="{{ option.id }}" class="form-selectgroup-input"
+                                              {% if selected_options and option.id in selected_options %}checked{% endif %}>
+                                        <div class="form-selectgroup-label d-flex align-items-center p-3">
+                                            <div class="me-3">
+                                                <span class="form-selectgroup-check"></span>
+                                            </div>
+                                            <div class="form-selectgroup-label-content d-flex align-items-center">
+                                                <div>
+                                                    <div class="markdown">{{ option.text|safe }}</div>
+                                                    {% if option.image_path %}
+                                                    <div class="mt-2">
+                                                        <img src="{{ url_for('static', filename='uploads/' + option.image_path) }}" alt="Option image" class="img-fluid rounded">
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-check" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                        <path d="M5 12l5 5l10 -10"></path>
+                                    </svg>
+                                    Submit Answer
+                                </button>
+                            </div>
+                        </form>
+                    {% elif current_question.question_type == 'true_false' %}
+                        <form method="post" action="{{ url_for('take_quiz', quiz_id=quiz.id, submission_id=submission.id, question_id=current_question.id) }}">
+                            {{ true_false_form.hidden_tag() if true_false_form }}
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Is this statement true or false?</label>
+                                <div class="form-selectgroup form-selectgroup-pills">
+                                    <label class="form-selectgroup-item">
+                                        <input type="radio" name="answer" value="true" class="form-selectgroup-input"
+                                               {% if selected_answer == 'true' %}checked{% endif %} required>
+                                        <span class="form-selectgroup-label">True</span>
+                                    </label>
+                                    <label class="form-selectgroup-item">
+                                        <input type="radio" name="answer" value="false" class="form-selectgroup-input"
+                                               {% if selected_answer == 'false' %}checked{% endif %} required>
+                                        <span class="form-selectgroup-label">False</span>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-check" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                        <path d="M5 12l5 5l10 -10"></path>
+                                    </svg>
+                                    Submit Answer
+                                </button>
+                            </div>
+                        </form>
+                    {% endif %}
                 </div>
 
                 <!-- Test Results -->
@@ -151,10 +310,11 @@ Time Remaining: <span id="timer" data-seconds="{{ time_remaining }}">{{ formatte
                                         aria-controls="collapse-test-{{ result.test_case_id }}">
                                     Test Case #{{ loop.index }} - 
                                     {% if result.passed %}
-                                    <span class="badge bg-success ms-2">Passed</span>
+                                    <span class="badge bg-success ms-2 test-result-badge">Passed</span>
                                     {% else %}
-                                    <span class="badge bg-danger ms-2">Failed</span>
+                                    <span class="badge bg-danger ms-2 test-result-badge">Failed</span>
                                     {% endif %}
+                                    <span class="ms-auto text-muted d-none d-md-block">{{ "%.3f"|format(result.execution_time) }}s</span>
                                 </button>
                             </h2>
                             <div id="collapse-test-{{ result.test_case_id }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" 
@@ -193,18 +353,28 @@ Time Remaining: <span id="timer" data-seconds="{{ time_remaining }}">{{ formatte
                 
                 <!-- Live Test Area -->
                 <div class="mt-4" id="live-test-area" style="display: none;">
-                    <h4>Live Test</h4>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Input</label>
-                                <textarea id="live-test-input" class="form-control" rows="3"></textarea>
-                            </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h4 class="card-title">Live Test</h4>
                         </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Output</label>
-                                <pre id="live-test-output" class="form-control" style="min-height: 80px; white-space: pre-wrap;">Run your code to see output here</pre>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Input</label>
+                                        <textarea id="live-test-input" class="form-control" rows="3" placeholder="Enter input for your code..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Output</label>
+                                        <pre id="live-test-output" class="form-control" style="min-height: 80px; white-space: pre-wrap;">Run your code to see output here</pre>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="live-test-spinner" class="text-center" style="display: none;">
+                                <div class="spinner-border text-primary" role="status"></div>
+                                <span class="ms-2">Running code...</span>
                             </div>
                         </div>
                     </div>
@@ -225,21 +395,61 @@ Time Remaining: <span id="timer" data-seconds="{{ time_remaining }}">{{ formatte
             <div class="modal-body">
                 <p>Are you sure you want to submit this quiz? This action cannot be undone.</p>
                 
+                {% set unanswered_questions = [] %}
+                {% for question in questions %}
+                    {% set has_submission = submission.question_submissions.filter_by(question_id=question.id).first() is not none %}
+                    {% if not has_submission %}
+                        {% set _ = unanswered_questions.append(question) %}
+                    {% endif %}
+                {% endfor %}
+                
+                {% if unanswered_questions %}
                 <div class="alert alert-warning">
-                    <p><strong>Warning:</strong> You haven't attempted all questions yet.</p>
-                    <ul>
-                        {% for question in questions %}
-                            {% set has_submission = submission.question_submissions.filter_by(question_id=question.id).first() is not none %}
-                            {% if not has_submission %}
-                                <li>Question {{ loop.index }}: {{ question.title }}</li>
-                            {% endif %}
-                        {% endfor %}
-                    </ul>
+                    <div class="d-flex">
+                        <div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                <path d="M12 9v2m0 4v.01"></path>
+                                <path d="M5 19h14a2 2 0 0 0 1.84 -2.75l-7.1 -12.25a2 2 0 0 0 -3.5 0l-7.1 12.25a2 2 0 0 0 1.75 2.75"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="alert-title">Warning!</h4>
+                            <p>You haven't attempted {{ unanswered_questions|length }} of {{ questions|length }} questions:</p>
+                            <ul>
+                                {% for question in unanswered_questions %}
+                                    <li>Question {{ questions.index(question) + 1 }}: {{ question.title }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
                 </div>
+                {% else %}
+                <div class="alert alert-success">
+                    <div class="d-flex">
+                        <div>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon alert-icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                                <path d="M5 12l5 5l10 -10"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="alert-title">Good job!</h4>
+                            <p>You've answered all {{ questions|length }} questions in this quiz.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-link" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" onclick="document.getElementById('submit-form').submit()">Submit Quiz</button>
+                <button type="button" class="btn btn-danger" onclick="document.getElementById('submit-form').submit()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                        <path d="M5 12l5 5l10 -10"></path>
+                    </svg>
+                    Submit Quiz
+                </button>
             </div>
         </div>
     </div>
@@ -247,19 +457,51 @@ Time Remaining: <span id="timer" data-seconds="{{ time_remaining }}">{{ formatte
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@4.0.18/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/contrib/auto-render.min.js"></script>
+
 <script>
-    // Initialize CodeMirror editor
-    let editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
-        lineNumbers: true,
-        mode: getCodeMirrorMode('{{ current_question.language }}'),
-        theme: 'dracula',
-        matchBrackets: true,
-        autoCloseBrackets: true,
-        indentUnit: 4,
-        tabSize: 4,
-        indentWithTabs: false,
-        extraKeys: {"Tab": "indentMore", "Shift-Tab": "indentLess"}
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        // Render any math in the problem statement
+        renderMathInElement(document.querySelector('.markdown'), {
+            delimiters: [
+                {left: "$$", right: "$$", display: true},
+                {left: "$", right: "$", display: false}
+            ]
+        });
     });
+
+    // Initialize CodeMirror editor if code-editor exists
+    let editor;
+    const codeEditor = document.getElementById('code-editor');
+    if (codeEditor) {
+        editor = CodeMirror.fromTextArea(codeEditor, {
+            lineNumbers: true,
+            mode: getCodeMirrorMode('{{ current_question.language }}'),
+            theme: 'dracula',
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            indentUnit: 4,
+            tabSize: 4,
+            indentWithTabs: false,
+            extraKeys: {"Tab": "indentMore", "Shift-Tab": "indentLess"}
+        });
+
+        // Set autofocus
+        setTimeout(() => editor.focus(), 100);
+    }
 
     // Function to get CodeMirror mode based on language
     function getCodeMirrorMode(language) {
@@ -271,10 +513,13 @@ Time Remaining: <span id="timer" data-seconds="{{ time_remaining }}">{{ formatte
         return modeMap[language] || 'text/plain';
     }
 
-    // Update editor mode when language changes
-    document.getElementById('language').addEventListener('change', function() {
-        editor.setOption('mode', getCodeMirrorMode(this.value));
-    });
+    // Update editor mode when language changes (if it exists)
+    const languageSelect = document.getElementById('language');
+    if (languageSelect && editor) {
+        languageSelect.addEventListener('change', function() {
+            editor.setOption('mode', getCodeMirrorMode(this.value));
+        });
+    }
 
     // Timer functionality
     let timerElement = document.getElementById('timer');
@@ -306,62 +551,126 @@ Time Remaining: <span id="timer" data-seconds="{{ time_remaining }}">{{ formatte
     }
     
     // Update timer every second
-    setInterval(updateTimer, 1000);
+    const timerInterval = setInterval(updateTimer, 1000);
     
     // Also fetch the server time periodically to stay in sync
-    setInterval(function() {
+    const serverSyncInterval = setInterval(function() {
         fetch(`/api/time-remaining/${{{ submission.id }}}`)
             .then(response => response.json())
             .then(data => {
                 remainingSeconds = data.timeRemaining;
+                // If time is up, clear intervals and submit
+                if (remainingSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    clearInterval(serverSyncInterval);
+                    document.getElementById('submit-form').submit();
+                }
             })
             .catch(error => console.error('Error fetching time:', error));
     }, 30000); // Every 30 seconds
     
     // Run Code button
-    document.getElementById('run-code-btn').addEventListener('click', function() {
-        const code = editor.getValue();
-        const language = document.getElementById('language').value;
-        const input = document.getElementById('live-test-input').value;
-        
-        // Show the test area
-        document.getElementById('live-test-area').style.display = 'block';
-        
-        // Update output with loading message
-        document.getElementById('live-test-output').textContent = 'Running code...';
-        
-        // Send to API
-        fetch('/api/run-code', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                code: code,
-                language: language,
-                stdin: input
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            let output = '';
+    const runCodeBtn = document.getElementById('run-code-btn');
+    if (runCodeBtn && editor) {
+        runCodeBtn.addEventListener('click', function() {
+            const code = editor.getValue();
+            const language = document.getElementById('language').value;
+            const input = document.getElementById('live-test-input')?.value || '';
             
-            if (!data.success) {
-                output = `Error: ${data.error}`;
-            } else {
-                const result = data.run;
-                if (result.stderr) {
-                    output = `Error:\n${result.stderr}`;
+            // Show the test area
+            document.getElementById('live-test-area').style.display = 'block';
+            
+            // Show spinner
+            const spinner = document.getElementById('live-test-spinner');
+            spinner.style.display = 'block';
+            
+            // Update output with loading message
+            const outputElement = document.getElementById('live-test-output');
+            outputElement.textContent = 'Running code...';
+            
+            // Send to API
+            fetch('/api/run-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    code: code,
+                    language: language,
+                    stdin: input
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide spinner
+                spinner.style.display = 'none';
+                
+                let output = '';
+                
+                if (!data.success) {
+                    output = `Error: ${data.error}`;
                 } else {
-                    output = result.stdout || 'No output';
+                    const result = data.run;
+                    if (result.stderr) {
+                        output = `Error:\n${result.stderr}`;
+                    } else {
+                        output = result.stdout || 'No output';
+                    }
+                }
+                
+                outputElement.textContent = output;
+            })
+            .catch(error => {
+                // Hide spinner
+                spinner.style.display = 'none';
+                outputElement.textContent = `Error: ${error.message}`;
+            });
+        });
+    }
+    
+    // Navigation buttons
+    const prevButton = document.getElementById('prev-question-btn');
+    const nextButton = document.getElementById('next-question-btn');
+    
+    const questionLinks = document.querySelectorAll('.question-nav-item');
+    const currentQuestionIndex = Array.from(questionLinks).findIndex(link => link.classList.contains('active'));
+    
+    if (prevButton) {
+        prevButton.addEventListener('click', function() {
+            if (currentQuestionIndex > 0) {
+                const prevQuestionLink = questionLinks[currentQuestionIndex - 1];
+                if (prevQuestionLink) {
+                    window.location.href = prevQuestionLink.href;
                 }
             }
-            
-            document.getElementById('live-test-output').textContent = output;
-        })
-        .catch(error => {
-            document.getElementById('live-test-output').textContent = `Error: ${error.message}`;
         });
+    }
+    
+    if (nextButton) {
+        nextButton.addEventListener('click', function() {
+            if (currentQuestionIndex < questionLinks.length - 1) {
+                const nextQuestionLink = questionLinks[currentQuestionIndex + 1];
+                if (nextQuestionLink) {
+                    window.location.href = nextQuestionLink.href;
+                }
+            }
+        });
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Only process if not in an input/textarea/select
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+            return;
+        }
+        
+        // Left arrow for previous question
+        if (e.key === 'ArrowLeft' && !prevButton.disabled) {
+            prevButton.click();
+        }
+        
+        // Right arrow for next question
+        if (e.key === 'ArrowRight' && !nextButton.disabled) {
+            nextButton.click();
+        }
     });
-</script>
-{% endblock %}

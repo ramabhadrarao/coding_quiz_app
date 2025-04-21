@@ -1,10 +1,13 @@
+import os
 from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.urls import url_parse
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 from datetime import datetime, timedelta
 import json
-import os
+import secrets
+from functools import wraps
 
 from config import Config
 from models import db, User, Quiz, Question, TestCase, Submission, QuestionSubmission, TestResult, QuestionOption, SelectedOption
@@ -17,11 +20,16 @@ from utils import PistonAPI, format_time_remaining
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Add ProxyFix for proper handling of X-Forwarded-For, X-Forwarded-Proto headers
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
 # Configuration for file uploads
-UPLOAD_FOLDER = 'static/uploads'
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static/uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB max upload size
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 # Create uploads directory if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -36,6 +44,8 @@ db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+login_manager.login_message_category = 'danger'  # Bootstrap alert style
+login_manager.session_protection = 'strong'  # Stronger session protection
 
 @login_manager.user_loader
 def load_user(id):
