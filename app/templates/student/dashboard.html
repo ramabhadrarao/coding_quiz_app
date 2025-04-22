@@ -40,13 +40,13 @@
                                 <td>
                                     {% if quiz.id in completed_quiz_ids %}
                                         {% set submission = my_submissions|selectattr('quiz_id', 'equalto', quiz.id)|selectattr('is_completed', 'equalto', true)|first %}
-                                        <a href="{{ url_for('student_view_submission', submission_id=submission.id) }}" class="btn btn-success btn-sm">
+                                        <a href="{{ url_for('student.view_submission', submission_id=submission.id) }}" class="btn btn-success btn-sm">
                                             View Results
                                         </a>
                                     {% else %}
-                                        <a href="{{ url_for('start_quiz', quiz_id=quiz.id) }}" class="btn btn-primary btn-sm">
-                                            Start Quiz
-                                        </a>
+                                    <a href="{{ url_for('student.start_quiz', quiz_id=quiz.id) }}" class="btn btn-primary btn-sm">
+                                        Start Quiz
+                                    </a>
                                     {% endif %}
                                 </td>
                             </tr>
