@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block page_title %}
+Submission Details
+{% endblock %}
+
+{% block subtitle %}
+{{ submission.student.username }} - {{ quiz.title }}
+{% endblock %}
+
+{% block page_actions %}
+<a href="{{ url_for('admin.results') }}" class="btn btn-outline-primary">
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-arrow-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+        <line x1="5" y1="12" x2="11" y2="18"></line>
+        <line x1="5" y1="12" x2="11" y2="6"></line>
+    </svg>
+    Back to Results
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">Submission Summary</h3>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <dl class="row">
+                    <dt class="col-5">Student:</dt>
+                    <dd class="col-7">{{ submission.student.username }}</dd>
+                    
+                    <dt class="col-5">Quiz:</dt>
+                    <dd class="col-7">{{ quiz.title }}</dd>
+                    
+                    <dt class="col-5">Started at:</dt>
+                    <dd class="col-7">{{ submission.started_at.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+                    
+                    <dt class="col-5">Completed at:</dt>
+                    <dd class="col-7">{{ submission.completed_at.strftime('%Y-%m-%d %H:%M:%S') }}</dd>
+                </dl>
+            </div>
+            <div class="col-md-6">
+                <dl class="row">
+                    <dt class="col-5">Time taken:</dt>
+                    <dd class="col-7">
+                        {% set duration = (submission.completed_at - submission.started_at).total_seconds() // 60 %}
+                        {{ duration }} minutes
+                    </dd>
+                    
+                    <dt class="col-5">Final score:</dt>
+                    <dd class="col-7">
+                        <span class="h4">
+                            {{ "%.1f"|format(submission.score) }} / {{ submission.total_points }}
+                            ({{ "%.1f"|format(100 * submission.score / submission.total_points if submission.total_points else 0) }}%)
+                        </span>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Question Submissions -->
+<div class="row row-cards">
+    {% for question_submission in question_submissions %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    Question {{ loop.index }}: {{ question_submission.question.title }}
+                </h3>
+                <div class="card-actions">
+                    <span class="badge bg-blue">{{ question_submission.question.points }} points</span>
+                    <span class="badge {% if question_submission.score == question_submission.question.points %}bg-success{% elif question_submission.score > 0 %}bg-warning{% else %}bg-danger{% endif %}">
+                        Score: {{ "%.1f"|format(question_submission.score) }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="markdown mb-3">
+                    {{ question_submission.question.problem_statement|safe }}
+                </div>
+                
+                {% if question_submission.question.question_type == 'code' %}
+                    <div class="row">
+                        <div class="col-12">
+                            <h4>Student Solution</h4>
+                            <pre class="language-{{ question_submission.language }}"><code>{{ question_submission.code }}</code></pre>
+                        </div>
+                    </div>
+                    
+                    <!-- Test Results -->
+                    <div class="mt-4">
+                        <h4>Test Results</h4>
+                        <div class="table-responsive">
+                            <table class="table table-vcenter">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Input</th>
+                                        <th>Expected Output</th>
+                                        <th>Actual Output</th>
+                                        <th>Status</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for result in question_submission.test_results %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td><pre class="mb-0">{{ result.test_case.input_data or 'No input' }}</pre></td>
+                                        <td><pre class="mb-0">{{ result.test_case.expected_output }}</pre></td>
+                                        <td>
+                                            <pre class="mb-0">{{ result.output or 'No output' }}</pre>
+                                            {% if result.error %}
+                                            <pre class="mb-0 text-danger">{{ result.error }}</pre>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if result.passed %}
+                                            <span class="badge bg-success">Passed</span>
+                                            {% else %}
+                                            <span class="badge bg-danger">Failed</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ "%.3f"|format(result.execution_time) }}s</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% elif question_submission.question.question_type in ['multiple_choice', 'true_false'] %}
+                    <div class="mt-4">
+                        <h4>Student Answer</h4>
+                        <div class="mb-3">
+                            {% for selected_option in question_submission.selected_options %}
+                                <div class="d-flex align-items-center mb-2 p-2 rounded
+                                        {% if selected_option.option.is_correct %}
+                                            bg-success-lt
+                                        {% else %}
+                                            bg-danger-lt
+                                        {% endif %}">
+                                    <div class="me-2">
+                                        <span class="badge bg-primary">Selected</span>
+                                        {% if selected_option.option.is_correct %}
+                                            <span class="badge bg-success">Correct</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Incorrect</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="markdown">{{ selected_option.option.text|safe }}</div>
+                                    {% if selected_option.option.image_path %}
+                                    <div class="ms-3">
+                                        <img src="{{ url_for('static', filename='uploads/' + selected_option.option.image_path) }}" alt="Option image" class="img-fluid rounded" style="max-height: 120px;">
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                            
+                            <!-- Show correct answers that weren't selected -->
+                            {% for option in question_submission.question.options %}
+                                {% if option.is_correct and option.id not in question_submission.selected_options|map(attribute='option_id')|list %}
+                                    <div class="d-flex align-items-center mb-2 p-2 rounded bg-warning-lt">
+                                        <div class="me-2">
+                                            <span class="badge bg-secondary">Not Selected</span>
+                                            <span class="badge bg-success">Correct</span>
+                                        </div>
+                                        <div class="markdown">{{ option.text|safe }}</div>
+                                        {% if option.image_path %}
+                                        <div class="ms-3">
+                                            <img src="{{ url_for('static', filename='uploads/' + option.image_path) }}" alt="Option image" class="img-fluid rounded" style="max-height: 120px;">
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Pre syntax highlighting for code blocks
+    document.querySelectorAll('pre code').forEach((block) => {
+        if (window.hljs) {
+            hljs.highlightElement(block);
+        }
+    });
+});
+</script>
+{% endblock %}

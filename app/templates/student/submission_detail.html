@@ -81,52 +81,83 @@ Quiz Results: {{ quiz.title }}
                     </div>
                     
                     {% if q_submission %}
-                        <div class="row">
-                            <div class="col-12">
-                                <h4>Your Solution</h4>
-                                <pre class="language-{{ q_submission.language }}"><code>{{ q_submission.code }}</code></pre>
+                        {% if question.question_type == 'code' %}
+                            <div class="row">
+                                <div class="col-12">
+                                    <h4>Your Solution</h4>
+                                    <pre class="language-{{ q_submission.language }}"><code>{{ q_submission.code }}</code></pre>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <!-- Test Results -->
-                        {% set results = test_results.get(question.id, []) %}
-                        {% if results %}
+                            
+                            <!-- Test Results -->
+                            {% set results = test_results.get(question.id, []) %}
+                            {% if results %}
+                                <div class="mt-4">
+                                    <h4>Test Results</h4>
+                                    <div class="table-responsive">
+                                        <table class="table table-vcenter">
+                                            <thead>
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Input</th>
+                                                    <th>Expected Output</th>
+                                                    <th>Your Output</th>
+                                                    <th>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for result in results %}
+                                                <tr>
+                                                    <td>{{ loop.index }}</td>
+                                                    <td><pre class="mb-0">{{ result.test_case.input_data or 'No input' }}</pre></td>
+                                                    <td><pre class="mb-0">{{ result.test_case.expected_output }}</pre></td>
+                                                    <td>
+                                                        <pre class="mb-0">{{ result.output or 'No output' }}</pre>
+                                                        {% if result.error %}
+                                                        <pre class="mb-0 text-danger">{{ result.error }}</pre>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if result.passed %}
+                                                        <span class="badge bg-success">Passed</span>
+                                                        {% else %}
+                                                        <span class="badge bg-danger">Failed</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% elif question.question_type == 'multiple_choice' or question.question_type == 'true_false' %}
                             <div class="mt-4">
-                                <h4>Test Results</h4>
-                                <div class="table-responsive">
-                                    <table class="table table-vcenter">
-                                        <thead>
-                                            <tr>
-                                                <th>#</th>
-                                                <th>Input</th>
-                                                <th>Expected Output</th>
-                                                <th>Your Output</th>
-                                                <th>Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for result in results %}
-                                            <tr>
-                                                <td>{{ loop.index }}</td>
-                                                <td><pre class="mb-0">{{ result.test_case.input_data or 'No input' }}</pre></td>
-                                                <td><pre class="mb-0">{{ result.test_case.expected_output }}</pre></td>
-                                                <td>
-                                                    <pre class="mb-0">{{ result.output or 'No output' }}</pre>
-                                                    {% if result.error %}
-                                                    <pre class="mb-0 text-danger">{{ result.error }}</pre>
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    {% if result.passed %}
-                                                    <span class="badge bg-success">Passed</span>
-                                                    {% else %}
-                                                    <span class="badge bg-danger">Failed</span>
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
+                                <h4>Your Answer</h4>
+                                <div class="mb-3">
+                                    {% set selected_opts = selected_options.get(question.id, []) %}
+                                    {% for option in question.options.order_by(QuestionOption.order).all() %}
+                                        <div class="d-flex align-items-center mb-2 p-2 rounded
+                                                {% if option.is_correct and option.id in selected_opts %}
+                                                    bg-success-lt
+                                                {% elif option.is_correct and option.id not in selected_opts %}
+                                                    bg-warning-lt
+                                                {% elif not option.is_correct and option.id in selected_opts %}
+                                                    bg-danger-lt
+                                                {% else %}
+                                                    bg-muted-lt
+                                                {% endif %}">
+                                            <div class="me-2">
+                                                {% if option.id in selected_opts %}
+                                                    <span class="badge bg-primary">Selected</span>
+                                                {% endif %}
+                                                {% if option.is_correct %}
+                                                    <span class="badge bg-success">Correct</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="markdown">{{ option.text|safe }}</div>
+                                        </div>
+                                    {% endfor %}
                                 </div>
                             </div>
                         {% endif %}
