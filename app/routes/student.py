@@ -412,6 +412,7 @@ def take_quiz(quiz_id, submission_id):
     return render_template('student/quiz.html',
                           quiz=quiz,
                           submission=submission,
+                          QuestionOption=QuestionOption,
                           questions=questions,
                           current_question=current_question,
                           code_form=code_form,
@@ -492,6 +493,7 @@ def view_submission(submission_id):
                           question_submissions=question_submissions,
                           test_results=test_results,
                           selected_options=selected_options,
+                          QuestionOption=QuestionOption,
                           title='Quiz Results')
 
 @student_bp.route('/results')
