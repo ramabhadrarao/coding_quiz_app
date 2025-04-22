@@ -1,0 +1,30 @@
+<svg width="300" height="200" viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="200" fill="#f4f6f9"/>
+
+  <!-- Laptop outer screen -->
+  <rect x="60" y="40" width="180" height="120" rx="10" ry="10" fill="#1f2937"/>
+  <!-- Laptop inner screen -->
+  <rect x="70" y="50" width="160" height="100" rx="5" ry="5" fill="#111827"/>
+
+  <!-- Institution Name -->
+  <text x="80" y="80" font-family="monospace" font-size="8" fill="#10b981">
+    SWARNANDHRA College of Engg
+  </text>
+  <text x="80" y="90" font-family="monospace" font-size="8" fill="#10b981">
+    Seetharampuram, Narsapur
+  </text>
+  <text x="80" y="100" font-family="monospace" font-size="8" fill="#10b981">
+    A.P. 534280, India
+  </text>
+
+  <!-- Developer Name -->
+  <text x="80" y="115" font-family="monospace" font-size="7" fill="#eab308">
+    developed by rama bhadra rao maddu
+  </text>
+
+  <!-- Laptop base -->
+  <rect x="40" y="170" width="220" height="20" rx="5" ry="5" fill="#9ca3af"/>
+  <circle cx="90" cy="180" r="3" fill="#374151"/>
+  <circle cx="150" cy="180" r="3" fill="#374151"/>
+  <circle cx="210" cy="180" r="3" fill="#374151"/>
+</svg>
