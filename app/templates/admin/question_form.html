@@ -40,7 +40,7 @@ for Quiz: {{ quiz.title }}
                 <h3 class="card-title">{% if question %}Edit Question{% else %}Create Question{% endif %}</h3>
             </div>
             <div class="card-body">
-                <form method="post" action="{% if question %}{{ url_for('edit_question', quiz_id=quiz.id, question_id=question.id) }}{% else %}{{ url_for('create_question', quiz_id=quiz.id) }}{% endif %}">
+                <form method="post" action="{% if question %}{{ url_for('admin.edit_question', quiz_id=quiz.id, question_id=question.id) }}{% else %}{{ url_for('admin.create_code_question', quiz_id=quiz.id) }}{% endif %}">
                     {{ form.hidden_tag() }}
                     <div class="mb-3">
                         <label class="form-label required">{{ form.title.label }}</label>
@@ -157,7 +157,7 @@ for Quiz: {{ quiz.title }}
             <div class="card-header">
                 <h3 class="card-title">Test Cases</h3>
                 <div class="card-actions">
-                    <a href="{{ url_for('create_test_case', quiz_id=quiz.id, question_id=question.id) }}" class="btn btn-primary btn-sm">
+                    <a href="{{ url_for('admin.create_test_case', quiz_id=quiz.id, question_id=question.id) }}" class="btn btn-primary btn-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
                             <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                             <line x1="12" y1="5" x2="12" y2="19" />
@@ -194,7 +194,7 @@ for Quiz: {{ quiz.title }}
                                         Actions
                                     </button>
                                     <div class="dropdown-menu dropdown-menu-end">
-                                        <a href="{{ url_for('edit_test_case', quiz_id=quiz.id, question_id=question.id, test_case_id=test_case.id) }}" class="dropdown-item">
+                                        <a href="{{ url_for('admin.edit_test_case', quiz_id=quiz.id, question_id=question.id, test_case_id=test_case.id) }}" class="dropdown-item">
                                             Edit
                                         </a>
                                         <a href="#" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#modal-delete-test-case-{{ test_case.id }}">
@@ -219,7 +219,7 @@ for Quiz: {{ quiz.title }}
                                                 <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
                                                     Cancel
                                                 </button>
-                                                <form action="{{ url_for('delete_test_case', quiz_id=quiz.id, question_id=question.id, test_case_id=test_case.id) }}" method="post">
+                                                <form action="{{ url_for('admin.delete_test_case', quiz_id=quiz.id, question_id=question.id, test_case_id=test_case.id) }}" method="post">
                                                     <button type="submit" class="btn btn-danger ms-auto">
                                                         Yes, delete test case
                                                     </button>
@@ -249,7 +249,7 @@ for Quiz: {{ quiz.title }}
                             Add test cases to verify student code
                         </p>
                         <div class="empty-action">
-                            <a href="{{ url_for('create_test_case', quiz_id=quiz.id, question_id=question.id) }}" class="btn btn-primary">
+                            <a href="{{ url_for('admin.create_test_case', quiz_id=quiz.id, question_id=question.id) }}" class="btn btn-primary">
                                 Add First Test Case
                             </a>
                         </div>

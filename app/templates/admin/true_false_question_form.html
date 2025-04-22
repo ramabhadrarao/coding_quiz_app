@@ -32,7 +32,7 @@ for Quiz: {{ quiz.title }}
                 <h3 class="card-title">{% if question %}Edit True/False Question{% else %}Create True/False Question{% endif %}</h3>
             </div>
             <div class="card-body">
-                <form method="post" action="{% if question %}{{ url_for('edit_true_false_question', quiz_id=quiz.id, question_id=question.id) }}{% else %}{{ url_for('create_true_false_question', quiz_id=quiz.id) }}{% endif %}">
+                <form method="post" action="{% if question %}{{ url_for('admin.edit_true_false_question', quiz_id=quiz.id, question_id=question.id) }}{% else %}{{ url_for('admin.create_true_false_question', quiz_id=quiz.id) }}{% endif %}">
                     {{ form.hidden_tag() }}
                     {{ form.question_type }}
                     

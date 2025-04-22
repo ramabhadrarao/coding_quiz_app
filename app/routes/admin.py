@@ -1,4 +1,5 @@
 import os
+import traceback
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -205,51 +206,122 @@ def create_multiple_choice_question(quiz_id):
         abort(403)
     
     form = MultipleChoiceQuestionForm()
-    if form.validate_on_submit():
-        # Create the question
-        question = Question(
-            quiz_id=quiz_id,
-            title=form.title.data,
-            description=form.description.data,
-            problem_statement=form.problem_statement.data,
-            question_type='multiple_choice',
-            points=form.points.data,
-            order=form.order.data
-        )
-        db.session.add(question)
-        db.session.flush()  # Get the question ID without committing
-        
-        # Process options
-        for i, option_form in enumerate(form.options):
-            # Handle image upload
-            image_path = None
-            if 'options-{}-image'.format(i) in request.files:
-                file = request.files['options-{}-image'.format(i)]
-                if file and file.filename and allowed_file(file.filename):
-                    filename = secure_filename(file.filename)
-                    # Create unique filename with timestamp
-                    filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
-                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                    file.save(file_path)
-                    image_path = filename
-            
-            # Create option
-            option = QuestionOption(
-                question_id=question.id,
-                text=option_form.text.data,
-                is_correct=option_form.is_correct.data,
-                order=option_form.order.data,
-                image_path=image_path
-            )
-            db.session.add(option)
-        
-        db.session.commit()
-        flash('Multiple choice question created successfully!', 'success')
-        return redirect(url_for('admin.edit_quiz', quiz_id=quiz_id))
     
-    # Default values for new question
+    if request.method == 'POST':
+        # Debug the POST data
+        print("\n===== MULTIPLE CHOICE FORM SUBMISSION =====")
+        print(f"Form data keys: {request.form.keys()}")
+        
+        # Process manually instead of using form.validate_on_submit()
+        try:
+            # Extract basic question data
+            title = request.form.get('title', '')
+            description = request.form.get('description', '')
+            problem_statement = request.form.get('problem_statement', '')
+            points = request.form.get('points', 10)
+            order = request.form.get('order', 1)
+            
+            # Validate required fields
+            errors = []
+            if not title:
+                errors.append("Title is required")
+            if not problem_statement:
+                errors.append("Problem statement is required")
+                
+            if errors:
+                for error in errors:
+                    flash(error, 'danger')
+                return render_template('admin/multiple_choice_question_form.html', 
+                                      form=form, 
+                                      quiz=quiz,
+                                      title='Create Multiple Choice Question')
+            
+            # Create the question
+            question = Question(
+                quiz_id=quiz_id,
+                title=title,
+                description=description,
+                problem_statement=problem_statement,
+                question_type='multiple_choice',
+                points=int(points),
+                order=int(order)
+            )
+            db.session.add(question)
+            db.session.flush()  # Get the question ID without committing
+            print(f"Question created with ID: {question.id}")
+            
+            # Extract and process options
+            option_count = 0
+            for key in request.form.keys():
+                if key.startswith('options-') and key.endswith('-text'):
+                    option_index = key.split('-')[1]
+                    text_key = f'options-{option_index}-text'
+                    is_correct_key = f'options-{option_index}-is_correct'
+                    order_key = f'options-{option_index}-order'
+                    
+                    option_text = request.form.get(text_key, '')
+                    is_correct = is_correct_key in request.form
+                    order_value = request.form.get(order_key, option_count)
+                    
+                    print(f"Processing option {option_index}: Text: '{option_text[:20]}...', Correct: {is_correct}")
+                    
+                    # Handle image upload
+                    image_path = None
+                    file_field = f'options-{option_index}-image'
+                    if file_field in request.files:
+                        file = request.files[file_field]
+                        if file and file.filename and allowed_file(file.filename):
+                            try:
+                                filename = secure_filename(file.filename)
+                                # Create unique filename with timestamp
+                                filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
+                                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                                file.save(file_path)
+                                image_path = filename
+                                print(f"Saved image: {image_path}")
+                            except Exception as e:
+                                print(f"Error saving file: {str(e)}")
+                                flash(f"Error saving image: {str(e)}", 'warning')
+                    
+                    # Create the option if text is provided
+                    if option_text.strip():
+                        option = QuestionOption(
+                            question_id=question.id,
+                            text=option_text,
+                            is_correct=is_correct,
+                            order=int(order_value) if order_value else option_count,
+                            image_path=image_path
+                        )
+                        db.session.add(option)
+                        option_count += 1
+            
+            # Ensure we have at least one option
+            if option_count == 0:
+                db.session.rollback()
+                flash('Please add at least one option for the multiple choice question.', 'danger')
+                return render_template('admin/multiple_choice_question_form.html', 
+                                      form=form, 
+                                      quiz=quiz,
+                                      title='Create Multiple Choice Question')
+            
+            # Commit the transaction
+            db.session.commit()
+            flash('Multiple choice question created successfully!', 'success')
+            return redirect(url_for('admin.edit_quiz', quiz_id=quiz_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating multiple choice question: {str(e)}")
+            traceback.print_exc()
+            flash(f'Error creating question: {str(e)}', 'danger')
+    
+    # For GET requests or if form validation fails
     form.order.data = quiz.questions.count() + 1
     form.points.data = 10
+    
+    # Ensure we have at least 2 option forms
+    while len(form.options) < 2:
+        form.options.append_entry()
     
     return render_template('admin/multiple_choice_question_form.html', 
                           form=form, 
@@ -268,64 +340,176 @@ def edit_multiple_choice_question(quiz_id, question_id):
     if question.question_type != 'multiple_choice':
         abort(400)
     
+    # For POST requests, process the form manually
+    if request.method == 'POST':
+        print("\n===== EDIT MULTIPLE CHOICE FORM SUBMISSION =====")
+        print(f"Form data keys: {list(request.form.keys())}")
+        
+        try:
+            # Extract basic question data
+            title = request.form.get('title', '')
+            description = request.form.get('description', '')
+            problem_statement = request.form.get('problem_statement', '')
+            points = request.form.get('points', 10)
+            order = request.form.get('order', 1)
+            
+            # Validate required fields
+            errors = []
+            if not title:
+                errors.append("Title is required")
+            if not problem_statement:
+                errors.append("Problem statement is required")
+                
+            if errors:
+                for error in errors:
+                    flash(error, 'danger')
+                # Create basic form for error redisplay
+                form = MultipleChoiceQuestionForm()
+                form.title.data = title
+                form.description.data = description
+                form.problem_statement.data = problem_statement
+                form.points.data = points
+                form.order.data = order
+                return render_template('admin/multiple_choice_question_form.html', 
+                                      form=form, 
+                                      quiz=quiz,
+                                      question=question,
+                                      title='Edit Multiple Choice Question')
+            
+            # Update the question
+            question.title = title
+            question.description = description
+            question.problem_statement = problem_statement
+            question.points = int(points)
+            question.order = int(order)
+            print(f"Updated question fields: {question.title}")
+            
+            # Delete all existing options first
+            for option in question.options.all():
+                db.session.delete(option)
+            db.session.flush()
+            print("Deleted all existing options")
+            
+            # Process and create new options from form data
+            option_count = 0
+            option_indices = set()
+            
+            # Find all unique option indices in the form
+            for key in request.form.keys():
+                if key.startswith('options-') and '-text' in key:
+                    parts = key.split('-')
+                    if len(parts) >= 3:
+                        try:
+                            option_indices.add(int(parts[1]))
+                        except ValueError:
+                            continue
+            
+            print(f"Found option indices: {sorted(option_indices)}")
+            
+            # Process each option
+            for idx in sorted(option_indices):
+                text_key = f'options-{idx}-text'
+                is_correct_key = f'options-{idx}-is_correct'
+                order_key = f'options-{idx}-order'
+                
+                option_text = request.form.get(text_key, '').strip()
+                is_correct = is_correct_key in request.form
+                order_value = request.form.get(order_key, option_count)
+                
+                # Skip empty options
+                if not option_text:
+                    print(f"Skipping empty option at index {idx}")
+                    continue
+                
+                print(f"Processing option {idx}: Text: '{option_text[:20]}...', Correct: {is_correct}")
+                
+                # Handle image upload
+                image_path = None
+                file_field = f'options-{idx}-image'
+                if file_field in request.files:
+                    file = request.files[file_field]
+                    if file and file.filename and allowed_file(file.filename):
+                        try:
+                            filename = secure_filename(file.filename)
+                            # Create unique filename with timestamp
+                            filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
+                            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                            file.save(file_path)
+                            image_path = filename
+                            print(f"Saved image: {image_path}")
+                        except Exception as e:
+                            print(f"Error saving file: {str(e)}")
+                            flash(f"Error saving image: {str(e)}", 'warning')
+                
+                # Create new option
+                option = QuestionOption(
+                    question_id=question.id,
+                    text=option_text,
+                    is_correct=is_correct,
+                    order=int(order_value) if order_value else option_count,
+                    image_path=image_path
+                )
+                db.session.add(option)
+                option_count += 1
+                print(f"Added option: {option_text[:20]}...")
+            
+            # Ensure we have at least one option
+            if option_count == 0:
+                db.session.rollback()
+                flash('Please add at least one option for the multiple choice question.', 'danger')
+                # Create basic form for error redisplay
+                form = MultipleChoiceQuestionForm()
+                form.title.data = title
+                form.description.data = description
+                form.problem_statement.data = problem_statement
+                form.points.data = points
+                form.order.data = order
+                return render_template('admin/multiple_choice_question_form.html', 
+                                    form=form, 
+                                    quiz=quiz,
+                                    question=question,
+                                    title='Edit Multiple Choice Question')
+            
+            # Commit the transaction
+            db.session.commit()
+            print(f"Successfully committed changes: {option_count} options added")
+            flash('Multiple choice question updated successfully!', 'success')
+            return redirect(url_for('admin.edit_quiz', quiz_id=quiz_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating multiple choice question: {str(e)}")
+            traceback.print_exc()
+            flash(f'Error updating question: {str(e)}', 'danger')
+            # Create a basic form in case of error
+            form = MultipleChoiceQuestionForm(obj=question)
+            return render_template('admin/multiple_choice_question_form.html', 
+                                  form=form, 
+                                  quiz=quiz,
+                                  question=question,
+                                  title='Edit Multiple Choice Question')
+    
+    # For GET requests, create a form and populate it
     form = MultipleChoiceQuestionForm(obj=question)
     
-    # Pre-populate options
-    if request.method == 'GET':
-        form.options = []
-        for option in question.options.order_by(QuestionOption.order).all():
-            option_form = OptionForm()
-            option_form.text.data = option.text
-            option_form.is_correct.data = option.is_correct
-            option_form.order.data = option.order
-            # We don't pre-populate the image field
-            form.options.append(option_form)
+    # Create a list of options for the template to use directly
+    options = []
+    for option in question.options.order_by(QuestionOption.order).all():
+        options.append({
+            'id': option.id,
+            'text': option.text,
+            'is_correct': option.is_correct,
+            'order': option.order,
+            'image_path': option.image_path
+        })
     
-    if form.validate_on_submit():
-        # Update question
-        question.title = form.title.data
-        question.description = form.description.data
-        question.problem_statement = form.problem_statement.data
-        question.points = form.points.data
-        question.order = form.order.data
-        
-        # Delete existing options
-        for option in question.options.all():
-            db.session.delete(option)
-        
-        # Process options
-        for i, option_form in enumerate(form.options):
-            # Handle image upload
-            image_path = None
-            if 'options-{}-image'.format(i) in request.files:
-                file = request.files['options-{}-image'.format(i)]
-                if file and file.filename and allowed_file(file.filename):
-                    filename = secure_filename(file.filename)
-                    # Create unique filename with timestamp
-                    filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
-                    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                    file.save(file_path)
-                    image_path = filename
-            
-            # Create option
-            option = QuestionOption(
-                question_id=question.id,
-                text=option_form.text.data,
-                is_correct=option_form.is_correct.data,
-                order=option_form.order.data,
-                image_path=image_path
-            )
-            db.session.add(option)
-        
-        db.session.commit()
-        flash('Multiple choice question updated successfully!', 'success')
-        return redirect(url_for('admin.edit_quiz', quiz_id=quiz_id))
-    
+    # Pass options directly to the template
     return render_template('admin/multiple_choice_question_form.html', 
-                          form=form, 
-                          quiz=quiz,
-                          question=question,
-                          title='Edit Multiple Choice Question')
+                           form=form, 
+                           quiz=quiz,
+                           question=question,
+                           existing_options=options,  # Pass options directly
+                           title='Edit Multiple Choice Question')
 
 # True/False Question Routes
 @admin_bp.route('/quizzes/<int:quiz_id>/questions/true-false/new', methods=['GET', 'POST'])
@@ -463,20 +647,49 @@ def create_test_case(quiz_id, question_id):
         abort(403)
     
     form = TestCaseForm()
-    if form.validate_on_submit():
-        test_case = TestCase(
-            question_id=question_id,
-            input_data=form.input_data.data,
-            expected_output=form.expected_output.data,
-            is_hidden=form.is_hidden.data,
-            order=form.order.data
-        )
-        db.session.add(test_case)
-        db.session.commit()
-        flash('Test case created successfully!', 'success')
-        return redirect(url_for('admin.edit_question', quiz_id=quiz_id, question_id=question_id))
     
-    # Default values for new test case
+    if request.method == 'POST':
+        print("\n===== TEST CASE FORM SUBMISSION =====")
+        print(f"Form data: {request.form}")
+        
+        try:
+            # Process the form manually to better debug issues
+            input_data = request.form.get('input_data', '')
+            expected_output = request.form.get('expected_output', '')
+            is_hidden = 'is_hidden' in request.form
+            order = request.form.get('order', '1')
+            
+            # Validate required fields
+            if not expected_output:
+                flash('Expected output is required.', 'danger')
+                return render_template('admin/test_case_form.html', 
+                                      form=form, 
+                                      quiz=quiz,
+                                      question=question,
+                                      title='Create Test Case')
+            
+            # Create and save the test case
+            test_case = TestCase(
+                question_id=question_id,
+                input_data=input_data,
+                expected_output=expected_output,
+                is_hidden=is_hidden,
+                order=int(order)
+            )
+            
+            db.session.add(test_case)
+            db.session.commit()
+            
+            flash('Test case created successfully!', 'success')
+            return redirect(url_for('admin.edit_question', quiz_id=quiz_id, question_id=question_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating test case: {str(e)}")
+            traceback.print_exc()
+            flash(f'Error creating test case: {str(e)}', 'danger')
+    
+    # Default value for order
     form.order.data = question.test_cases.count() + 1
     
     return render_template('admin/test_case_form.html', 
